@@ -66,6 +66,7 @@ function toLocalDateTimeInputValue(iso) {
 }
 
 function renderDraft(post) {
+  const isLinkedIn = post.platform === "linkedin";
   const wrapper = document.createElement("div");
   wrapper.className = "post-card";
   wrapper.innerHTML = `
@@ -73,59 +74,100 @@ function renderDraft(post) {
     <div class="post-meta">Status: ${post.status}</div>
     <textarea class="post-editor" id="editor-${post.id}">${post.edited_text || post.generated_text}</textarea>
     <div class="row">
-      <button id="save-${post.id}" class="secondary">Save Edit</button>
-      <button id="approve-${post.id}">Approve</button>
-      <button id="reject-${post.id}" class="warn">Reject</button>
-      <button id="publish-${post.id}" class="secondary">Publish Now</button>
+      <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
+      <button id="approve-${post.id}" type="button">Approve</button>
+      <button id="reject-${post.id}" class="warn" type="button">Reject</button>
+      <button id="publish-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Publish Now</button>
       <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
-      <button id="set-schedule-${post.id}" class="secondary">Schedule</button>
+      <button id="set-schedule-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Schedule</button>
     </div>
+    <div class="post-meta" id="feedback-${post.id}">${!isLinkedIn ? "Publishing/scheduling is only enabled for LinkedIn right now." : ""}</div>
     <div class="post-meta">${post.last_error ? `Error: ${post.last_error}` : ""}</div>
   `;
 
+  const feedback = wrapper.querySelector(`#feedback-${post.id}`);
+  const setFeedback = (text) => {
+    feedback.textContent = text;
+  };
+
   wrapper.querySelector(`#save-${post.id}`).addEventListener("click", async () => {
-    const editedText = wrapper.querySelector(`#editor-${post.id}`).value;
-    await api(`/api/posts/${post.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ edited_text: editedText }),
-    });
-    await loadDrafts();
+    try {
+      setFeedback("Saving...");
+      const editedText = wrapper.querySelector(`#editor-${post.id}`).value;
+      await api(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ edited_text: editedText }),
+      });
+      setFeedback("Saved.");
+      await loadDrafts();
+    } catch (err) {
+      setFeedback(`Save failed: ${err.message}`);
+    }
   });
 
   wrapper.querySelector(`#approve-${post.id}`).addEventListener("click", async () => {
-    await api(`/api/posts/${post.id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "approved" }),
-    });
-    await loadDrafts();
+    try {
+      setFeedback("Approving...");
+      await api(`/api/posts/${post.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "approved" }),
+      });
+      setFeedback("Approved.");
+      await loadDrafts();
+    } catch (err) {
+      setFeedback(`Approve failed: ${err.message}`);
+    }
   });
 
   wrapper.querySelector(`#reject-${post.id}`).addEventListener("click", async () => {
-    await api(`/api/posts/${post.id}/status`, {
-      method: "PATCH",
-      body: JSON.stringify({ status: "rejected" }),
-    });
-    await loadDrafts();
+    try {
+      setFeedback("Rejecting...");
+      await api(`/api/posts/${post.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "rejected" }),
+      });
+      setFeedback("Rejected.");
+      await loadDrafts();
+    } catch (err) {
+      setFeedback(`Reject failed: ${err.message}`);
+    }
   });
 
   wrapper.querySelector(`#publish-${post.id}`).addEventListener("click", async () => {
-    await api(`/api/posts/${post.id}/publish`, {
-      method: "POST",
-      body: JSON.stringify({ confirm: true }),
-    });
-    await loadDrafts();
-    await loadHistory();
+    if (!isLinkedIn) return;
+    try {
+      setFeedback("Publishing to LinkedIn...");
+      await api(`/api/posts/${post.id}/publish`, {
+        method: "POST",
+        body: JSON.stringify({ confirm: true }),
+      });
+      setFeedback("Published successfully.");
+      await loadDrafts();
+      await loadHistory();
+    } catch (err) {
+      setFeedback(`Publish failed: ${err.message}`);
+    }
   });
 
   wrapper.querySelector(`#set-schedule-${post.id}`).addEventListener("click", async () => {
-    const value = wrapper.querySelector(`#schedule-${post.id}`).value;
-    if (!value) throw new Error("Choose date/time first");
-    const scheduledAt = new Date(value).toISOString();
-    await api(`/api/posts/${post.id}/schedule`, {
-      method: "PATCH",
-      body: JSON.stringify({ scheduled_at: scheduledAt }),
-    });
-    await loadDrafts();
+    if (!isLinkedIn) return;
+    try {
+      const value = wrapper.querySelector(`#schedule-${post.id}`).value;
+      if (!value) {
+        setFeedback("Choose date/time first.");
+        return;
+      }
+      setFeedback("Scheduling...");
+      const scheduledAt = new Date(value).toISOString();
+      await api(`/api/posts/${post.id}/schedule`, {
+        method: "PATCH",
+        body: JSON.stringify({ scheduled_at: scheduledAt }),
+      });
+      setFeedback("Scheduled.");
+      await loadDrafts();
+    } catch (err) {
+      setFeedback(`Schedule failed: ${err.message}`);
+    }
   });
 
   return wrapper;
