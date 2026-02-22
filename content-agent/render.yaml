@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: ai-content-saas-backend
+    runtime: python
+    plan: free
+    rootDir: content-agent
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: AI Content SaaS
+      - key: CORS_ORIGIN
+        value: https://YOUR_VERCEL_DOMAIN
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama3-8b-8192
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWKS_URL
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: LINKEDIN_REDIRECT_URI
+        sync: false
+      - key: STATE_SIGNING_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: APP_TIMEZONE
+        value: Asia/Karachi

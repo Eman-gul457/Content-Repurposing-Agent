@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Content SaaS</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+  <main class="container">
+    <header class="hero">
+      <h1>AI Content SaaS</h1>
+      <p>Generate, review, approve, schedule, and publish LinkedIn content.</p>
+      <div class="auth-row">
+        <button id="googleLoginBtn">Login with Google</button>
+        <button id="logoutBtn" class="secondary" hidden>Logout</button>
+        <span id="authState">Not logged in</span>
+      </div>
+    </header>
+
+    <section class="card" id="socialSection" hidden>
+      <h2>Social Accounts</h2>
+      <div class="social-item">
+        <strong>LinkedIn</strong>
+        <span id="linkedinStatus">Not connected</span>
+        <button id="connectLinkedInBtn" class="secondary">Connect LinkedIn</button>
+      </div>
+      <p class="muted">Twitter and Facebook integration will be enabled next.</p>
+    </section>
+
+    <section class="card" id="generatorSection" hidden>
+      <h2>Generate Content</h2>
+      <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
+      <div class="row">
+        <button id="generateBtn">Generate Drafts</button>
+        <span id="statusText"></span>
+      </div>
+    </section>
+
+    <section class="card" id="draftsSection" hidden>
+      <h2>Drafts</h2>
+      <div id="draftsList"></div>
+    </section>
+
+    <section class="card" id="historySection" hidden>
+      <h2>Posting History</h2>
+      <button id="refreshHistoryBtn" class="secondary">Refresh</button>
+      <div id="historyList"></div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

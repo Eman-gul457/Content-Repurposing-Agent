@@ -1,0 +1,68 @@
+from datetime import datetime
+from enum import Enum
+
+from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Platform(str, Enum):
+    linkedin = "linkedin"
+    twitter = "twitter"
+    facebook = "facebook"
+
+
+class PostStatus(str, Enum):
+    draft = "draft"
+    approved = "approved"
+    rejected = "rejected"
+    scheduled = "scheduled"
+    posted = "posted"
+    failed = "failed"
+
+
+class SocialAccount(Base):
+    __tablename__ = "social_accounts"
+    __table_args__ = (UniqueConstraint("user_id", "platform", name="uq_user_platform"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    platform: Mapped[str] = mapped_column(String(24), index=True)
+    account_id: Mapped[str] = mapped_column(String(128))
+    account_name: Mapped[str] = mapped_column(String(256), default="")
+    access_token_enc: Mapped[str] = mapped_column(Text)
+    refresh_token_enc: Mapped[str] = mapped_column(Text, default="")
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GeneratedPost(Base):
+    __tablename__ = "generated_posts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    platform: Mapped[str] = mapped_column(String(24), index=True)
+    input_content: Mapped[str] = mapped_column(Text)
+    generated_text: Mapped[str] = mapped_column(Text)
+    edited_text: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(24), default=PostStatus.draft.value, index=True)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    external_post_id: Mapped[str] = mapped_column(String(256), default="")
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OAuthState(Base):
+    __tablename__ = "oauth_states"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    provider: Mapped[str] = mapped_column(String(32), index=True)
+    state_token: Mapped[str] = mapped_column(String(256), index=True, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
