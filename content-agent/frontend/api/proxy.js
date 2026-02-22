@@ -2,7 +2,17 @@ module.exports = async (req, res) => {
   const backendBase = "http://3.95.64.139";
   const rawPath = req.query.path || "";
   const path = Array.isArray(rawPath) ? rawPath.join("/") : rawPath;
-  const target = `${backendBase}/api/${path}`;
+  const forwardedQuery = new URLSearchParams();
+  Object.entries(req.query || {}).forEach(([key, value]) => {
+    if (key === "path") return;
+    if (Array.isArray(value)) {
+      value.forEach((v) => forwardedQuery.append(key, v));
+    } else if (typeof value !== "undefined") {
+      forwardedQuery.append(key, String(value));
+    }
+  });
+  const queryString = forwardedQuery.toString();
+  const target = `${backendBase}/api/${path}${queryString ? `?${queryString}` : ""}`;
 
   const headers = { ...req.headers };
   delete headers.host;
