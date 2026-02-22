@@ -247,12 +247,25 @@ def linkedin_connect_start(
 
 @app.get("/api/linkedin/connect/callback")
 def linkedin_connect_callback(
-    code: str = Query(...),
-    state: str = Query(...),
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     redirect_base = settings.frontend_url.rstrip("/") if settings.frontend_url else ""
     success_url = f"{redirect_base}/index.html?linkedin=connected" if redirect_base else "/index.html?linkedin=connected"
+    if error:
+        description = (error_description or "").replace("+", " ")
+        message = f"LinkedIn OAuth error: {error}. {description}".strip()
+        error_url = f"{redirect_base}/index.html?linkedin=error&message={message}" if redirect_base else f"/index.html?linkedin=error&message={message}"
+        return RedirectResponse(url=error_url)
+
+    if not code or not state:
+        message = "LinkedIn callback missing code/state. Check app redirect URI and scopes."
+        error_url = f"{redirect_base}/index.html?linkedin=error&message={message}" if redirect_base else f"/index.html?linkedin=error&message={message}"
+        return RedirectResponse(url=error_url)
+
     try:
         handle_linkedin_callback(db, code, state)
     except Exception as exc:

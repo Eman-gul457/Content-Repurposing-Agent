@@ -12,7 +12,7 @@ from backend.security import decrypt_text, encrypt_text
 
 LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
-LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
+LINKEDIN_ME_URL = "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName)"
 LINKEDIN_UGC_POST_URL = "https://api.linkedin.com/v2/ugcPosts"
 
 
@@ -35,7 +35,7 @@ def create_linkedin_authorization_url(db: Session, user_id: str) -> str:
         "client_id": settings.linkedin_client_id,
         "redirect_uri": settings.linkedin_redirect_uri,
         "state": state,
-        "scope": "openid profile email w_member_social",
+        "scope": "r_liteprofile w_member_social",
     }
     return f"{LINKEDIN_AUTH_URL}?{urlencode(params)}"
 
@@ -58,7 +58,7 @@ def _exchange_code_for_token(code: str) -> dict:
 
 def _fetch_userinfo(access_token: str) -> dict:
     response = requests.get(
-        LINKEDIN_USERINFO_URL,
+        LINKEDIN_ME_URL,
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=30,
     )
@@ -87,11 +87,13 @@ def handle_linkedin_callback(db: Session, code: str, state: str) -> str:
     expires_in = token_data.get("expires_in", 3600)
 
     user_info = _fetch_userinfo(access_token)
-    account_id = user_info.get("sub")
+    account_id = user_info.get("id")
     if not account_id:
         raise RuntimeError("LinkedIn user id missing")
 
-    account_name = user_info.get("name", "LinkedIn User")
+    first = user_info.get("localizedFirstName", "")
+    last = user_info.get("localizedLastName", "")
+    account_name = f"{first} {last}".strip() or "LinkedIn User"
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))
 
     existing = (
