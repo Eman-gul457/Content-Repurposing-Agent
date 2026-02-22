@@ -1,5 +1,3 @@
-from contextlib import contextmanager
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -18,7 +16,6 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)
 
 
-@contextmanager
 def get_db() -> Session:
     db = SessionLocal()
     try:
