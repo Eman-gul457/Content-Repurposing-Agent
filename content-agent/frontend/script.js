@@ -1,6 +1,6 @@
 const { API_BASE_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
 const supabaseLib = window.supabase;
-let supabase = null;
+let sbClient = null;
 
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -191,11 +191,11 @@ connectLinkedInBtn.addEventListener("click", async () => {
 
 googleLoginBtn.addEventListener("click", async () => {
   try {
-    if (!supabase) {
+    if (!sbClient) {
       throw new Error("Supabase client failed to initialize. Refresh and try again.");
     }
     authState.textContent = "Redirecting to Google...";
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await sbClient.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: window.location.origin,
@@ -210,7 +210,7 @@ googleLoginBtn.addEventListener("click", async () => {
 });
 
 logoutBtn.addEventListener("click", async () => {
-  await supabase.auth.signOut();
+  await sbClient.auth.signOut();
   currentSession = null;
   setAuthedUI(false);
 });
@@ -220,9 +220,9 @@ async function bootstrap() {
     authState.textContent = "Supabase library failed to load. Check internet and reload.";
     return;
   }
-  supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  sbClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
+  sbClient.auth.onAuthStateChange(async (_event, session) => {
     currentSession = session;
     if (session) {
       setAuthedUI(true, session.user?.email || "");
@@ -234,7 +234,7 @@ async function bootstrap() {
     }
   });
 
-  const { data } = await supabase.auth.getSession();
+  const { data } = await sbClient.auth.getSession();
   currentSession = data.session;
 
   if (!currentSession) {
