@@ -1,5 +1,6 @@
 const { API_BASE_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const supabaseLib = window.supabase;
+let supabase = null;
 
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -189,12 +190,23 @@ connectLinkedInBtn.addEventListener("click", async () => {
 });
 
 googleLoginBtn.addEventListener("click", async () => {
-  await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin,
-    },
-  });
+  try {
+    if (!supabase) {
+      throw new Error("Supabase client failed to initialize. Refresh and try again.");
+    }
+    statusText.textContent = "Redirecting to Google...";
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) {
+      throw error;
+    }
+  } catch (err) {
+    statusText.textContent = `Login failed: ${err.message}`;
+  }
 });
 
 logoutBtn.addEventListener("click", async () => {
@@ -204,6 +216,12 @@ logoutBtn.addEventListener("click", async () => {
 });
 
 async function bootstrap() {
+  if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
+    statusText.textContent = "Supabase library failed to load. Check internet and reload.";
+    return;
+  }
+  supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
   const { data } = await supabase.auth.getSession();
   currentSession = data.session;
 
