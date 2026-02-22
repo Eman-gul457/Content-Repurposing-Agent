@@ -194,7 +194,7 @@ googleLoginBtn.addEventListener("click", async () => {
     if (!supabase) {
       throw new Error("Supabase client failed to initialize. Refresh and try again.");
     }
-    statusText.textContent = "Redirecting to Google...";
+    authState.textContent = "Redirecting to Google...";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -205,7 +205,7 @@ googleLoginBtn.addEventListener("click", async () => {
       throw error;
     }
   } catch (err) {
-    statusText.textContent = `Login failed: ${err.message}`;
+    authState.textContent = `Login failed: ${err.message}`;
   }
 });
 
@@ -217,7 +217,7 @@ logoutBtn.addEventListener("click", async () => {
 
 async function bootstrap() {
   if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
-    statusText.textContent = "Supabase library failed to load. Check internet and reload.";
+    authState.textContent = "Supabase library failed to load. Check internet and reload.";
     return;
   }
   supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
