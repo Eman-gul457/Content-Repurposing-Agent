@@ -222,6 +222,18 @@ async function bootstrap() {
   }
   supabase = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    currentSession = session;
+    if (session) {
+      setAuthedUI(true, session.user?.email || "");
+      await loadSocial();
+      await loadDrafts();
+      await loadHistory();
+    } else {
+      setAuthedUI(false);
+    }
+  });
+
   const { data } = await supabase.auth.getSession();
   currentSession = data.session;
 
@@ -246,18 +258,6 @@ async function bootstrap() {
     window.history.replaceState({}, "", window.location.pathname);
   }
 }
-
-supabase.auth.onAuthStateChange(async (_event, session) => {
-  currentSession = session;
-  if (session) {
-    setAuthedUI(true, session.user?.email || "");
-    await loadSocial();
-    await loadDrafts();
-    await loadHistory();
-  } else {
-    setAuthedUI(false);
-  }
-});
 
 bootstrap().catch((err) => {
   statusText.textContent = `Startup error: ${err.message}`;
