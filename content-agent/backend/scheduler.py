@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from backend.db_models import GeneratedPost, PostStatus
 from backend.media_service import list_post_media, refresh_media_signed_urls
 from backend.linkedin_service import publish_to_linkedin
-from backend.twitter_service import publish_to_twitter
 
 
 def process_scheduled_posts(db: Session) -> None:
@@ -25,8 +24,10 @@ def process_scheduled_posts(db: Session) -> None:
                 refresh_media_signed_urls(db, media)
                 result = publish_to_linkedin(db, post.user_id, content, media_items=media)
             elif post.platform == "twitter":
-                media = list_post_media(db, post.user_id, post.id)
-                result = publish_to_twitter(db, post.user_id, content, media_items=media)
+                post.status = PostStatus.failed.value
+                post.last_error = "Twitter free mode does not support automatic scheduling/publishing."
+                db.commit()
+                continue
             else:
                 post.status = PostStatus.failed.value
                 post.last_error = f"Unsupported platform for scheduling: {post.platform}"

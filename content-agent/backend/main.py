@@ -13,7 +13,7 @@ from backend.db_models import GeneratedPost, MediaAsset, PostStatus, SocialAccou
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
 from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
 from backend.scheduler import create_scheduler
-from backend.twitter_service import create_twitter_authorization_url, handle_twitter_callback, publish_to_twitter
+from backend.twitter_service import create_twitter_authorization_url, handle_twitter_callback
 from backend.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -215,14 +215,16 @@ def publish_post_now(
         raise HTTPException(status_code=400, detail="Post must be approved or scheduled before publishing")
 
     content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
+    if post.platform == "twitter":
+        raise HTTPException(
+            status_code=400,
+            detail="Twitter is on free mode. Use manual publish from the dashboard.",
+        )
+
     try:
-        if post.platform == "linkedin":
-            media = list_post_media(db, user_id, post.id)
-            refresh_media_signed_urls(db, media)
-            result = publish_to_linkedin(db, user_id, content, media_items=media)
-        else:
-            media = list_post_media(db, user_id, post.id)
-            result = publish_to_twitter(db, user_id, content, media_items=media)
+        media = list_post_media(db, user_id, post.id)
+        refresh_media_signed_urls(db, media)
+        result = publish_to_linkedin(db, user_id, content, media_items=media)
         post.status = PostStatus.posted.value
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")
@@ -234,6 +236,33 @@ def publish_post_now(
         db.refresh(post)
         raise HTTPException(status_code=500, detail=f"Publish failed: {exc}") from exc
 
+    db.commit()
+    db.refresh(post)
+    return _serialize_post(post)
+
+
+@app.post("/api/posts/{post_id}/manual-publish", response_model=DraftPost)
+def manual_publish_post(
+    post_id: int,
+    payload: PublishNowRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> DraftPost:
+    if not payload.confirm:
+        raise HTTPException(status_code=400, detail="Explicit permission required")
+
+    post = db.query(GeneratedPost).filter(GeneratedPost.id == post_id, GeneratedPost.user_id == user_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.platform != "twitter":
+        raise HTTPException(status_code=400, detail="Manual publish endpoint is only for Twitter")
+    if post.status not in [PostStatus.approved.value, PostStatus.scheduled.value, PostStatus.failed.value]:
+        raise HTTPException(status_code=400, detail="Post must be approved or scheduled before publishing")
+
+    post.status = PostStatus.posted.value
+    post.posted_at = datetime.utcnow()
+    post.external_post_id = "manual://twitter-intent"
+    post.last_error = ""
     db.commit()
     db.refresh(post)
     return _serialize_post(post)

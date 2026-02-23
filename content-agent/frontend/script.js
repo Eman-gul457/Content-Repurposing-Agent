@@ -71,6 +71,7 @@ function renderDraft(post) {
   const isLinkedIn = post.platform === "linkedin";
   const isTwitter = post.platform === "twitter";
   const canPublish = isLinkedIn || isTwitter;
+  const canSchedule = isLinkedIn;
   const canAttachMedia = isLinkedIn || isTwitter;
   const mediaAccept = isTwitter ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
   const wrapper = document.createElement("div");
@@ -83,16 +84,16 @@ function renderDraft(post) {
       <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
       <button id="approve-${post.id}" type="button">Approve</button>
       <button id="reject-${post.id}" class="warn" type="button">Reject</button>
-      <button id="publish-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>Publish Now</button>
+      <button id="publish-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>${isTwitter ? "Open in X" : "Publish Now"}</button>
       <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
-      <button id="set-schedule-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>Schedule</button>
+      <button id="set-schedule-${post.id}" class="secondary" type="button" ${canSchedule ? "" : "disabled"}>Schedule</button>
     </div>
     <div class="row">
       <input type="file" id="file-${post.id}" accept="${mediaAccept}" ${canAttachMedia ? "" : "disabled"} />
       <button id="upload-${post.id}" class="secondary" type="button" ${canAttachMedia ? "" : "disabled"}>Attach Media</button>
     </div>
     <div class="post-meta" id="media-${post.id}"></div>
-    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing/scheduling is only enabled for LinkedIn and Twitter right now." : ""}</div>
+    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is only enabled for LinkedIn and Twitter right now." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
     <div class="post-meta">${post.last_error ? `Error: ${post.last_error}` : ""}</div>
   `;
 
@@ -168,12 +169,28 @@ function renderDraft(post) {
   wrapper.querySelector(`#publish-${post.id}`).addEventListener("click", async () => {
     if (!canPublish) return;
     try {
-      setFeedback(`Publishing to ${isTwitter ? "Twitter" : "LinkedIn"}...`);
-      await api(`/api/posts/${post.id}/publish`, {
-        method: "POST",
-        body: JSON.stringify({ confirm: true }),
-      });
-      setFeedback("Published successfully.");
+      if (isTwitter) {
+        const text = wrapper.querySelector(`#editor-${post.id}`).value.trim();
+        if (!text) {
+          setFeedback("Add some text before publishing.");
+          return;
+        }
+
+        const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text.slice(0, 280))}`;
+        window.open(intentUrl, "_blank", "noopener,noreferrer");
+        await api(`/api/posts/${post.id}/manual-publish`, {
+          method: "POST",
+          body: JSON.stringify({ confirm: true }),
+        });
+        setFeedback("Opened X composer. Attach images there and click Post.");
+      } else {
+        setFeedback("Publishing to LinkedIn...");
+        await api(`/api/posts/${post.id}/publish`, {
+          method: "POST",
+          body: JSON.stringify({ confirm: true }),
+        });
+        setFeedback("Published successfully.");
+      }
       await loadDrafts();
       await loadHistory();
     } catch (err) {
@@ -182,7 +199,7 @@ function renderDraft(post) {
   });
 
   wrapper.querySelector(`#set-schedule-${post.id}`).addEventListener("click", async () => {
-    if (!canPublish) return;
+    if (!canSchedule) return;
     try {
       const value = wrapper.querySelector(`#schedule-${post.id}`).value;
       if (!value) {
