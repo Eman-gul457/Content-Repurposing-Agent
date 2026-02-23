@@ -38,12 +38,16 @@ body {
 
 .container {
   max-width: 1120px;
-  margin: 30px auto;
-  padding: 0 18px 36px;
+  margin: 18px auto;
+  padding: 0 18px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .hero {
-  padding: 20px 0 8px;
+  padding: 6px 0 4px;
+  margin: 0;
 }
 
 h1 {
@@ -75,8 +79,8 @@ strong {
   background: linear-gradient(180deg, rgba(22, 33, 52, 0.86), rgba(17, 26, 41, 0.9));
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 18px;
-  margin-bottom: 14px;
+  padding: 16px;
+  margin: 0;
   box-shadow: var(--shadow);
   backdrop-filter: blur(6px);
 }
@@ -152,7 +156,7 @@ button[id^="approve-"] {
 .auth-row,
 .social-item,
 .row {
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -221,6 +225,10 @@ button[id^="approve-"] {
 #statusText {
   color: #9ec1ff;
   font-weight: 600;
+}
+
+[hidden] {
+  display: none !important;
 }
 
 @media (max-width: 900px) {
