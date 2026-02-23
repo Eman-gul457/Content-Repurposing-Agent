@@ -16,7 +16,7 @@ TWITTER_AUTH_URL = "https://twitter.com/i/oauth2/authorize"
 TWITTER_TOKEN_URL = "https://api.x.com/2/oauth2/token"
 TWITTER_USERINFO_URL = "https://api.x.com/2/users/me"
 TWITTER_TWEET_CREATE_URL = "https://api.x.com/2/tweets"
-TWITTER_SCOPE = "tweet.read tweet.write users.read offline.access"
+TWITTER_SCOPE = "tweet.read tweet.write users.read"
 
 
 def _state_serializer() -> URLSafeTimedSerializer:
