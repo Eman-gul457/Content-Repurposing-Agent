@@ -23,6 +23,9 @@ class Settings:
     linkedin_client_id: str = os.getenv("LINKEDIN_CLIENT_ID", "")
     linkedin_client_secret: str = os.getenv("LINKEDIN_CLIENT_SECRET", "")
     linkedin_redirect_uri: str = os.getenv("LINKEDIN_REDIRECT_URI", "")
+    twitter_client_id: str = os.getenv("TWITTER_CLIENT_ID", "")
+    twitter_client_secret: str = os.getenv("TWITTER_CLIENT_SECRET", "")
+    twitter_redirect_uri: str = os.getenv("TWITTER_REDIRECT_URI", "")
 
     state_signing_secret: str = os.getenv("STATE_SIGNING_SECRET", "")
     encryption_key: str = os.getenv("ENCRYPTION_KEY", "")

@@ -17,6 +17,8 @@ const historyList = document.getElementById("historyList");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 const linkedinStatus = document.getElementById("linkedinStatus");
 const connectLinkedInBtn = document.getElementById("connectLinkedInBtn");
+const twitterStatus = document.getElementById("twitterStatus");
+const connectTwitterBtn = document.getElementById("connectTwitterBtn");
 
 let currentSession = null;
 
@@ -67,6 +69,8 @@ function toLocalDateTimeInputValue(iso) {
 
 function renderDraft(post) {
   const isLinkedIn = post.platform === "linkedin";
+  const isTwitter = post.platform === "twitter";
+  const canPublish = isLinkedIn || isTwitter;
   const wrapper = document.createElement("div");
   wrapper.className = "post-card";
   wrapper.innerHTML = `
@@ -77,16 +81,16 @@ function renderDraft(post) {
       <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
       <button id="approve-${post.id}" type="button">Approve</button>
       <button id="reject-${post.id}" class="warn" type="button">Reject</button>
-      <button id="publish-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Publish Now</button>
+      <button id="publish-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>Publish Now</button>
       <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
-      <button id="set-schedule-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Schedule</button>
+      <button id="set-schedule-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>Schedule</button>
     </div>
     <div class="row">
       <input type="file" id="file-${post.id}" accept=".png,.jpg,.jpeg,.pdf" ${isLinkedIn ? "" : "disabled"} />
       <button id="upload-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Attach Media</button>
     </div>
     <div class="post-meta" id="media-${post.id}"></div>
-    <div class="post-meta" id="feedback-${post.id}">${!isLinkedIn ? "Publishing/scheduling is only enabled for LinkedIn right now." : ""}</div>
+    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing/scheduling is only enabled for LinkedIn and Twitter right now." : ""}</div>
     <div class="post-meta">${post.last_error ? `Error: ${post.last_error}` : ""}</div>
   `;
 
@@ -160,9 +164,9 @@ function renderDraft(post) {
   });
 
   wrapper.querySelector(`#publish-${post.id}`).addEventListener("click", async () => {
-    if (!isLinkedIn) return;
+    if (!canPublish) return;
     try {
-      setFeedback("Publishing to LinkedIn...");
+      setFeedback(`Publishing to ${isTwitter ? "Twitter" : "LinkedIn"}...`);
       await api(`/api/posts/${post.id}/publish`, {
         method: "POST",
         body: JSON.stringify({ confirm: true }),
@@ -176,7 +180,7 @@ function renderDraft(post) {
   });
 
   wrapper.querySelector(`#set-schedule-${post.id}`).addEventListener("click", async () => {
-    if (!isLinkedIn) return;
+    if (!canPublish) return;
     try {
       const value = wrapper.querySelector(`#schedule-${post.id}`).value;
       if (!value) {
@@ -238,7 +242,9 @@ function renderDraft(post) {
 async function loadSocial() {
   const data = await api("/api/social-accounts");
   const linkedin = data.find((x) => x.platform === "linkedin");
+  const twitter = data.find((x) => x.platform === "twitter");
   linkedinStatus.textContent = linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected";
+  twitterStatus.textContent = twitter?.connected ? `Connected: ${twitter.account_name || "Twitter"}` : "Not connected";
 }
 
 async function loadDrafts() {
@@ -299,6 +305,11 @@ refreshHistoryBtn.addEventListener("click", loadHistory);
 
 connectLinkedInBtn.addEventListener("click", async () => {
   const data = await api("/api/linkedin/connect/start", { method: "GET" });
+  window.location.href = data.authorization_url;
+});
+
+connectTwitterBtn.addEventListener("click", async () => {
+  const data = await api("/api/twitter/connect/start", { method: "GET" });
   window.location.href = data.authorization_url;
 });
 
@@ -368,6 +379,15 @@ async function bootstrap() {
   }
   if (params.get("linkedin") === "error") {
     statusText.textContent = `LinkedIn error: ${params.get("message") || "Unknown"}`;
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("twitter") === "connected") {
+    statusText.textContent = "Twitter connected successfully.";
+    await loadSocial();
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("twitter") === "error") {
+    statusText.textContent = `Twitter error: ${params.get("message") || "Unknown"}`;
     window.history.replaceState({}, "", window.location.pathname);
   }
 }

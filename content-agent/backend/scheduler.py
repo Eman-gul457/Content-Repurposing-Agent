@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.db_models import GeneratedPost, PostStatus
 from backend.media_service import list_post_media, refresh_media_signed_urls
 from backend.linkedin_service import publish_to_linkedin
+from backend.twitter_service import publish_to_twitter
 
 
 def process_scheduled_posts(db: Session) -> None:
@@ -19,9 +20,17 @@ def process_scheduled_posts(db: Session) -> None:
     for post in posts:
         try:
             content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
-            media = list_post_media(db, post.user_id, post.id)
-            refresh_media_signed_urls(db, media)
-            result = publish_to_linkedin(db, post.user_id, content, media_items=media)
+            if post.platform == "linkedin":
+                media = list_post_media(db, post.user_id, post.id)
+                refresh_media_signed_urls(db, media)
+                result = publish_to_linkedin(db, post.user_id, content, media_items=media)
+            elif post.platform == "twitter":
+                result = publish_to_twitter(db, post.user_id, content)
+            else:
+                post.status = PostStatus.failed.value
+                post.last_error = f"Unsupported platform for scheduling: {post.platform}"
+                db.commit()
+                continue
             post.status = PostStatus.posted.value
             post.posted_at = now
             post.external_post_id = result.get("external_post_id", "")

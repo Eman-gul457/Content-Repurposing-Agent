@@ -13,6 +13,7 @@ from backend.db_models import GeneratedPost, MediaAsset, PostStatus, SocialAccou
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
 from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
 from backend.scheduler import create_scheduler
+from backend.twitter_service import create_twitter_authorization_url, handle_twitter_callback, publish_to_twitter
 from backend.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -207,18 +208,20 @@ def publish_post_now(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    if post.platform != "linkedin":
-        raise HTTPException(status_code=400, detail="Only LinkedIn publishing is enabled right now")
+    if post.platform not in ["linkedin", "twitter"]:
+        raise HTTPException(status_code=400, detail="Publishing is currently enabled for LinkedIn and Twitter only")
 
     if post.status not in [PostStatus.approved.value, PostStatus.scheduled.value, PostStatus.failed.value]:
         raise HTTPException(status_code=400, detail="Post must be approved or scheduled before publishing")
 
     content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
-    media = list_post_media(db, user_id, post.id)
-    refresh_media_signed_urls(db, media)
-
     try:
-        result = publish_to_linkedin(db, user_id, content, media_items=media)
+        if post.platform == "linkedin":
+            media = list_post_media(db, user_id, post.id)
+            refresh_media_signed_urls(db, media)
+            result = publish_to_linkedin(db, user_id, content, media_items=media)
+        else:
+            result = publish_to_twitter(db, user_id, content)
         post.status = PostStatus.posted.value
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")
@@ -276,6 +279,11 @@ def social_accounts(
         .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "linkedin")
         .first()
     )
+    twitter = (
+        db.query(SocialAccount)
+        .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "twitter")
+        .first()
+    )
 
     return [
         SocialAccountResponse(
@@ -283,7 +291,11 @@ def social_accounts(
             connected=linkedin is not None,
             account_name=linkedin.account_name if linkedin else None,
         ),
-        SocialAccountResponse(platform="twitter", connected=False, account_name=None),
+        SocialAccountResponse(
+            platform="twitter",
+            connected=twitter is not None,
+            account_name=twitter.account_name if twitter else None,
+        ),
         SocialAccountResponse(platform="facebook", connected=False, account_name=None),
     ]
 
@@ -294,6 +306,15 @@ def linkedin_connect_start(
     db: Session = Depends(get_db),
 ) -> LinkedInConnectStartResponse:
     url = create_linkedin_authorization_url(db, user_id)
+    return LinkedInConnectStartResponse(authorization_url=url)
+
+
+@app.get("/api/twitter/connect/start", response_model=LinkedInConnectStartResponse)
+def twitter_connect_start(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> LinkedInConnectStartResponse:
+    url = create_twitter_authorization_url(db, user_id)
     return LinkedInConnectStartResponse(authorization_url=url)
 
 
@@ -322,6 +343,36 @@ def linkedin_connect_callback(
         handle_linkedin_callback(db, code, state)
     except Exception as exc:
         error_url = f"{redirect_base}/index.html?linkedin=error&message={str(exc)}" if redirect_base else f"/index.html?linkedin=error&message={str(exc)}"
+        return RedirectResponse(url=error_url)
+
+    return RedirectResponse(url=success_url)
+
+
+@app.get("/api/twitter/connect/callback")
+def twitter_connect_callback(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    redirect_base = settings.frontend_url.rstrip("/") if settings.frontend_url else ""
+    success_url = f"{redirect_base}/index.html?twitter=connected" if redirect_base else "/index.html?twitter=connected"
+    if error:
+        description = (error_description or "").replace("+", " ")
+        message = f"Twitter OAuth error: {error}. {description}".strip()
+        error_url = f"{redirect_base}/index.html?twitter=error&message={message}" if redirect_base else f"/index.html?twitter=error&message={message}"
+        return RedirectResponse(url=error_url)
+
+    if not code or not state:
+        message = "Twitter callback missing code/state. Check app redirect URI and scopes."
+        error_url = f"{redirect_base}/index.html?twitter=error&message={message}" if redirect_base else f"/index.html?twitter=error&message={message}"
+        return RedirectResponse(url=error_url)
+
+    try:
+        handle_twitter_callback(db, code, state)
+    except Exception as exc:
+        error_url = f"{redirect_base}/index.html?twitter=error&message={str(exc)}" if redirect_base else f"/index.html?twitter=error&message={str(exc)}"
         return RedirectResponse(url=error_url)
 
     return RedirectResponse(url=success_url)
