@@ -248,7 +248,16 @@ async function loadDrafts() {
     draftsList.innerHTML = "<p class='muted'>No drafts yet.</p>";
     return;
   }
-  data.posts.forEach((post) => draftsList.appendChild(renderDraft(post)));
+
+  const latestByPlatform = [];
+  const seen = new Set();
+  for (const post of data.posts) {
+    if (seen.has(post.platform)) continue;
+    seen.add(post.platform);
+    latestByPlatform.push(post);
+  }
+
+  latestByPlatform.forEach((post) => draftsList.appendChild(renderDraft(post)));
 }
 
 async function loadHistory() {

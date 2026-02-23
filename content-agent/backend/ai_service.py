@@ -45,5 +45,7 @@ def generate_platform_posts(content: str) -> dict[str, str]:
         "linkedin": "Write one professional LinkedIn post with strong hook and CTA.",
         "twitter": "Write one X/Twitter thread (4-6 tweets) with numbered format 1/,2/.",
         "facebook": "Write one Facebook post in conversational brand tone with CTA.",
+        "instagram": "Write one Instagram caption with strong hook, CTA, and 6-10 relevant hashtags.",
+        "blog_summary": "Write a concise blog-style summary with clear key takeaways in a professional tone.",
     }
     return {platform: _generate(content, prompt) for platform, prompt in prompts.items()}
