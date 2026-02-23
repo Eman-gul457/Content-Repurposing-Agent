@@ -1,4 +1,6 @@
 import base64
+import hashlib
+import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
@@ -26,11 +28,25 @@ def _basic_auth_header() -> str:
     return "Basic " + base64.b64encode(raw).decode("utf-8")
 
 
+def _generate_code_verifier() -> str:
+    # RFC 7636: verifier length must be 43-128 chars
+    return secrets.token_urlsafe(64)[:96]
+
+
+def _code_challenge_s256(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest).decode("utf-8").rstrip("=")
+
+
 def create_twitter_authorization_url(db: Session, user_id: str) -> str:
     if not settings.twitter_client_id or not settings.twitter_redirect_uri:
         raise RuntimeError("Twitter OAuth settings are missing")
 
-    state = _state_serializer().dumps({"user_id": user_id, "provider": "twitter"})
+    code_verifier = _generate_code_verifier()
+    code_challenge = _code_challenge_s256(code_verifier)
+    state = _state_serializer().dumps(
+        {"user_id": user_id, "provider": "twitter", "code_verifier": code_verifier}
+    )
     db.add(OAuthState(user_id=user_id, provider="twitter", state_token=state))
     db.commit()
 
@@ -40,11 +56,13 @@ def create_twitter_authorization_url(db: Session, user_id: str) -> str:
         "redirect_uri": settings.twitter_redirect_uri,
         "scope": TWITTER_SCOPE,
         "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
     return f"{TWITTER_AUTH_URL}?{urlencode(params)}"
 
 
-def _exchange_code_for_token(code: str) -> dict:
+def _exchange_code_for_token(code: str, code_verifier: str) -> dict:
     headers = {
         "Authorization": _basic_auth_header(),
         "Content-Type": "application/x-www-form-urlencoded",
@@ -54,6 +72,7 @@ def _exchange_code_for_token(code: str) -> dict:
         "code": code,
         "redirect_uri": settings.twitter_redirect_uri,
         "client_id": settings.twitter_client_id,
+        "code_verifier": code_verifier,
     }
     resp = requests.post(TWITTER_TOKEN_URL, headers=headers, data=data, timeout=30)
     if resp.status_code >= 400:
@@ -100,8 +119,11 @@ def handle_twitter_callback(db: Session, code: str, state: str) -> str:
 
     user_id = payload.get("user_id", "")
     provider = payload.get("provider", "")
+    code_verifier = payload.get("code_verifier", "")
     if not user_id or provider != "twitter":
         raise RuntimeError("Invalid Twitter auth state payload")
+    if not code_verifier:
+        raise RuntimeError("Invalid Twitter auth state: missing PKCE verifier")
 
     state_row = db.query(OAuthState).filter(OAuthState.state_token == state, OAuthState.provider == "twitter").first()
     if not state_row:
@@ -109,7 +131,7 @@ def handle_twitter_callback(db: Session, code: str, state: str) -> str:
     db.delete(state_row)
     db.commit()
 
-    token_data = _exchange_code_for_token(code)
+    token_data = _exchange_code_for_token(code, code_verifier)
     access_token = token_data.get("access_token", "")
     refresh_token = token_data.get("refresh_token", "")
     expires_in = int(token_data.get("expires_in") or 0)
