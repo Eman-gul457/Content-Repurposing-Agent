@@ -19,7 +19,7 @@ TWITTER_TOKEN_URL = "https://api.x.com/2/oauth2/token"
 TWITTER_USERINFO_URL = "https://api.x.com/2/users/me"
 TWITTER_TWEET_CREATE_URL = "https://api.x.com/2/tweets"
 TWITTER_MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload"
-TWITTER_SCOPE = "tweet.read tweet.write users.read"
+TWITTER_SCOPE = "tweet.read tweet.write users.read media.write"
 TWITTER_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp", "image/pjpeg"}
 TWITTER_MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
