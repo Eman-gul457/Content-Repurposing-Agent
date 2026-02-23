@@ -221,7 +221,8 @@ def publish_post_now(
             refresh_media_signed_urls(db, media)
             result = publish_to_linkedin(db, user_id, content, media_items=media)
         else:
-            result = publish_to_twitter(db, user_id, content)
+            media = list_post_media(db, user_id, post.id)
+            result = publish_to_twitter(db, user_id, content, media_items=media)
         post.status = PostStatus.posted.value
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")

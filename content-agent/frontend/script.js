@@ -71,6 +71,8 @@ function renderDraft(post) {
   const isLinkedIn = post.platform === "linkedin";
   const isTwitter = post.platform === "twitter";
   const canPublish = isLinkedIn || isTwitter;
+  const canAttachMedia = isLinkedIn || isTwitter;
+  const mediaAccept = isTwitter ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
   const wrapper = document.createElement("div");
   wrapper.className = "post-card";
   wrapper.innerHTML = `
@@ -86,8 +88,8 @@ function renderDraft(post) {
       <button id="set-schedule-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>Schedule</button>
     </div>
     <div class="row">
-      <input type="file" id="file-${post.id}" accept=".png,.jpg,.jpeg,.pdf" ${isLinkedIn ? "" : "disabled"} />
-      <button id="upload-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Attach Media</button>
+      <input type="file" id="file-${post.id}" accept="${mediaAccept}" ${canAttachMedia ? "" : "disabled"} />
+      <button id="upload-${post.id}" class="secondary" type="button" ${canAttachMedia ? "" : "disabled"}>Attach Media</button>
     </div>
     <div class="post-meta" id="media-${post.id}"></div>
     <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing/scheduling is only enabled for LinkedIn and Twitter right now." : ""}</div>
@@ -112,7 +114,7 @@ function renderDraft(post) {
       }
       setMedia(
         items
-          .map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [LinkedIn asset ready]" : ""}`)
+          .map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [Asset ready]" : ""}`)
           .join(" | "),
       );
     } catch (err) {
@@ -201,11 +203,11 @@ function renderDraft(post) {
   });
 
   wrapper.querySelector(`#upload-${post.id}`).addEventListener("click", async () => {
-    if (!isLinkedIn) return;
+    if (!canAttachMedia) return;
     const input = wrapper.querySelector(`#file-${post.id}`);
     const file = input.files?.[0];
     if (!file) {
-      setFeedback("Choose a PNG, JPG, or PDF file first.");
+      setFeedback(isTwitter ? "Choose a PNG/JPG/WEBP image first." : "Choose a PNG, JPG, or PDF file first.");
       return;
     }
     try {

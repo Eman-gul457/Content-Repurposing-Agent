@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import secrets
+import time
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
@@ -8,7 +9,8 @@ import requests
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy.orm import Session
 
-from backend.db_models import OAuthState, SocialAccount
+from backend.db_models import MediaAsset, OAuthState, SocialAccount
+from backend.media_service import download_media_bytes
 from backend.security import decrypt_text, encrypt_text
 from config.settings import settings
 
@@ -16,7 +18,14 @@ TWITTER_AUTH_URL = "https://twitter.com/i/oauth2/authorize"
 TWITTER_TOKEN_URL = "https://api.x.com/2/oauth2/token"
 TWITTER_USERINFO_URL = "https://api.x.com/2/users/me"
 TWITTER_TWEET_CREATE_URL = "https://api.x.com/2/tweets"
+TWITTER_MEDIA_UPLOAD_URL = "https://api.x.com/2/media/upload"
 TWITTER_SCOPE = "tweet.read tweet.write users.read"
+TWITTER_IMAGE_MIME_TYPES = {"image/jpeg", "image/png", "image/webp", "image/pjpeg"}
+TWITTER_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+
+class TwitterUnauthorizedError(RuntimeError):
+    pass
 
 
 def _state_serializer() -> URLSafeTimedSerializer:
@@ -170,13 +179,125 @@ def handle_twitter_callback(db: Session, code: str, state: str) -> str:
     return account_name
 
 
-def _post_tweet(access_token: str, content: str) -> requests.Response:
+def _post_tweet(access_token: str, content: str, media_ids: list[str] | None = None) -> requests.Response:
     headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    payload = {"text": content}
+    payload: dict = {"text": content}
+    if media_ids:
+        payload["media"] = {"media_ids": media_ids}
     return requests.post(TWITTER_TWEET_CREATE_URL, headers=headers, json=payload, timeout=30)
 
 
-def publish_to_twitter(db: Session, user_id: str, content: str) -> dict:
+def _wait_for_media_ready(access_token: str, media_id: str, check_after_secs: int = 1) -> None:
+    headers = {"Authorization": f"Bearer {access_token}"}
+    wait_seconds = max(1, min(check_after_secs, 4))
+    for _ in range(8):
+        time.sleep(wait_seconds)
+        resp = requests.get(TWITTER_MEDIA_UPLOAD_URL, headers=headers, params={"id": media_id}, timeout=30)
+        if resp.status_code == 401:
+            raise TwitterUnauthorizedError("Twitter token expired")
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Twitter media status failed ({resp.status_code}): {resp.text}")
+        data = resp.json().get("data", {})
+        info = data.get("processing_info") or {}
+        state = str(info.get("state", "succeeded")).lower()
+        if state == "succeeded":
+            return
+        if state == "failed":
+            raise RuntimeError(f"Twitter media processing failed: {resp.text}")
+        wait_seconds = max(1, min(int(info.get("check_after_secs") or wait_seconds), 5))
+
+    raise RuntimeError("Twitter media processing timed out")
+
+
+def _upload_twitter_media(access_token: str, item: MediaAsset) -> str:
+    if item.mime_type not in TWITTER_IMAGE_MIME_TYPES:
+        raise RuntimeError(f"Twitter supports image media only. Unsupported type: {item.mime_type}")
+
+    blob = download_media_bytes(item.storage_path)
+    if len(blob) > TWITTER_MAX_IMAGE_BYTES:
+        raise RuntimeError(f"Twitter image too large ({item.file_name}). Max size is 5MB")
+
+    payload = {
+        "media": base64.b64encode(blob).decode("utf-8"),
+        "media_category": "tweet_image",
+        "media_type": item.mime_type,
+        "shared": False,
+    }
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+
+    last_error = ""
+    for attempt in range(1, 4):
+        resp = requests.post(TWITTER_MEDIA_UPLOAD_URL, headers=headers, json=payload, timeout=60)
+        if resp.status_code == 401:
+            raise TwitterUnauthorizedError("Twitter token expired")
+        if resp.status_code < 400:
+            body = resp.json()
+            data = body.get("data", {})
+            media_id = str(data.get("id", "")).strip()
+            if not media_id:
+                raise RuntimeError(f"Twitter media upload returned no media id: {resp.text}")
+            processing_info = data.get("processing_info") or {}
+            if processing_info and str(processing_info.get("state", "succeeded")).lower() != "succeeded":
+                _wait_for_media_ready(
+                    access_token=access_token,
+                    media_id=media_id,
+                    check_after_secs=int(processing_info.get("check_after_secs") or 1),
+                )
+            return media_id
+
+        last_error = f"Twitter media upload failed ({resp.status_code}): {resp.text}"
+        if resp.status_code < 500 or attempt == 3:
+            break
+        time.sleep(attempt)
+
+    raise RuntimeError(last_error or "Twitter media upload failed")
+
+
+def _ensure_twitter_media_ids(db: Session, access_token: str, media_items: list[MediaAsset]) -> list[str]:
+    if not media_items:
+        return []
+
+    if len(media_items) > 4:
+        raise RuntimeError("Twitter supports up to 4 images per post")
+
+    media_ids: list[str] = []
+    for item in media_items:
+        media_id = _upload_twitter_media(access_token, item)
+        item.platform_asset_id = media_id
+        item.upload_status = "twitter_asset_ready"
+        item.last_error = ""
+        media_ids.append(media_id)
+
+    db.commit()
+    return media_ids
+
+
+def _refresh_twitter_account_tokens(db: Session, account: SocialAccount) -> str:
+    if not account.refresh_token_enc:
+        raise RuntimeError("Twitter access token expired and no refresh token is available")
+
+    refresh_data = _refresh_access_token(decrypt_text(account.refresh_token_enc))
+    access_token = refresh_data.get("access_token", "")
+    if not access_token:
+        raise RuntimeError("Twitter token refresh returned no access token")
+
+    account.access_token_enc = encrypt_text(access_token)
+    refresh_token = refresh_data.get("refresh_token")
+    if refresh_token:
+        account.refresh_token_enc = encrypt_text(refresh_token)
+
+    expires_in = int(refresh_data.get("expires_in") or 0)
+    account.expires_at = datetime.utcnow() + timedelta(seconds=expires_in) if expires_in > 0 else None
+    db.commit()
+    return access_token
+
+
+def publish_to_twitter(
+    db: Session,
+    user_id: str,
+    content: str,
+    media_items: list[MediaAsset] | None = None,
+) -> dict:
     account = (
         db.query(SocialAccount)
         .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "twitter")
@@ -186,24 +307,18 @@ def publish_to_twitter(db: Session, user_id: str, content: str) -> dict:
         raise RuntimeError("Twitter account is not connected")
 
     access_token = decrypt_text(account.access_token_enc)
-    response = _post_tweet(access_token, content)
+    media_ids: list[str] = []
 
-    if response.status_code == 401 and account.refresh_token_enc:
-        refresh_data = _refresh_access_token(decrypt_text(account.refresh_token_enc))
-        access_token = refresh_data.get("access_token", "")
-        if not access_token:
-            raise RuntimeError("Twitter token refresh returned no access token")
-        account.access_token_enc = encrypt_text(access_token)
-
-        refresh_token = refresh_data.get("refresh_token")
-        if refresh_token:
-            account.refresh_token_enc = encrypt_text(refresh_token)
-
-        expires_in = int(refresh_data.get("expires_in") or 0)
-        account.expires_at = datetime.utcnow() + timedelta(seconds=expires_in) if expires_in > 0 else None
-        db.commit()
-
-        response = _post_tweet(access_token, content)
+    try:
+        if media_items:
+            media_ids = _ensure_twitter_media_ids(db, access_token, media_items)
+        response = _post_tweet(access_token, content, media_ids=media_ids)
+        if response.status_code == 401:
+            raise TwitterUnauthorizedError("Twitter token expired")
+    except TwitterUnauthorizedError:
+        access_token = _refresh_twitter_account_tokens(db, account)
+        media_ids = _ensure_twitter_media_ids(db, access_token, media_items or [])
+        response = _post_tweet(access_token, content, media_ids=media_ids)
 
     if response.status_code >= 400:
         raise RuntimeError(f"Twitter publish failed ({response.status_code}): {response.text}")

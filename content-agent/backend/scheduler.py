@@ -25,7 +25,8 @@ def process_scheduled_posts(db: Session) -> None:
                 refresh_media_signed_urls(db, media)
                 result = publish_to_linkedin(db, post.user_id, content, media_items=media)
             elif post.platform == "twitter":
-                result = publish_to_twitter(db, post.user_id, content)
+                media = list_post_media(db, post.user_id, post.id)
+                result = publish_to_twitter(db, post.user_id, content, media_items=media)
             else:
                 post.status = PostStatus.failed.value
                 post.last_error = f"Unsupported platform for scheduling: {post.platform}"
