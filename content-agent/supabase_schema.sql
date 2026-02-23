@@ -44,3 +44,23 @@ create table if not exists oauth_states (
 );
 
 create index if not exists idx_oauth_states_user on oauth_states(user_id);
+
+create table if not exists media_assets (
+  id bigserial primary key,
+  user_id text not null,
+  post_id bigint not null references generated_posts(id) on delete cascade,
+  platform text not null default 'linkedin',
+  file_name text not null,
+  mime_type text not null,
+  file_size bigint default 0,
+  storage_path text not null,
+  file_url text default '',
+  platform_asset_id text default '',
+  upload_status text default 'uploaded',
+  last_error text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_media_assets_user on media_assets(user_id);
+create index if not exists idx_media_assets_post on media_assets(post_id);

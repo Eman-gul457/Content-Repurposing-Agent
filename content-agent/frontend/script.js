@@ -81,14 +81,40 @@ function renderDraft(post) {
       <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
       <button id="set-schedule-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Schedule</button>
     </div>
+    <div class="row">
+      <input type="file" id="file-${post.id}" accept=".png,.jpg,.jpeg,.pdf" ${isLinkedIn ? "" : "disabled"} />
+      <button id="upload-${post.id}" class="secondary" type="button" ${isLinkedIn ? "" : "disabled"}>Attach Media</button>
+    </div>
+    <div class="post-meta" id="media-${post.id}"></div>
     <div class="post-meta" id="feedback-${post.id}">${!isLinkedIn ? "Publishing/scheduling is only enabled for LinkedIn right now." : ""}</div>
     <div class="post-meta">${post.last_error ? `Error: ${post.last_error}` : ""}</div>
   `;
 
   const feedback = wrapper.querySelector(`#feedback-${post.id}`);
+  const mediaBox = wrapper.querySelector(`#media-${post.id}`);
   const setFeedback = (text) => {
     feedback.textContent = text;
   };
+  const setMedia = (text) => {
+    mediaBox.textContent = text;
+  };
+
+  async function loadMedia() {
+    try {
+      const items = await api(`/api/posts/${post.id}/media`);
+      if (!items.length) {
+        setMedia("No media attached.");
+        return;
+      }
+      setMedia(
+        items
+          .map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [LinkedIn asset ready]" : ""}`)
+          .join(" | "),
+      );
+    } catch (err) {
+      setMedia(`Media load failed: ${err.message}`);
+    }
+  }
 
   wrapper.querySelector(`#save-${post.id}`).addEventListener("click", async () => {
     try {
@@ -169,6 +195,42 @@ function renderDraft(post) {
       setFeedback(`Schedule failed: ${err.message}`);
     }
   });
+
+  wrapper.querySelector(`#upload-${post.id}`).addEventListener("click", async () => {
+    if (!isLinkedIn) return;
+    const input = wrapper.querySelector(`#file-${post.id}`);
+    const file = input.files?.[0];
+    if (!file) {
+      setFeedback("Choose a PNG, JPG, or PDF file first.");
+      return;
+    }
+    try {
+      setFeedback("Uploading media...");
+      const b64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+
+      await api("/api/uploads", {
+        method: "POST",
+        body: JSON.stringify({
+          post_id: post.id,
+          file_name: file.name,
+          mime_type: file.type || "application/octet-stream",
+          content_base64: b64,
+        }),
+      });
+      setFeedback("Media uploaded.");
+      input.value = "";
+      await loadMedia();
+    } catch (err) {
+      setFeedback(`Upload failed: ${err.message}`);
+    }
+  });
+
+  loadMedia();
 
   return wrapper;
 }

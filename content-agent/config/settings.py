@@ -17,6 +17,8 @@ class Settings:
 
     supabase_url: str = os.getenv("SUPABASE_URL", "")
     supabase_jwks_url: str = os.getenv("SUPABASE_JWKS_URL", "")
+    supabase_service_role_key: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    supabase_storage_bucket: str = os.getenv("SUPABASE_STORAGE_BUCKET", "post-media")
 
     linkedin_client_id: str = os.getenv("LINKEDIN_CLIENT_ID", "")
     linkedin_client_secret: str = os.getenv("LINKEDIN_CLIENT_SECRET", "")

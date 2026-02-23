@@ -6,7 +6,8 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from sqlalchemy.orm import Session
 
 from config.settings import settings
-from backend.db_models import OAuthState, SocialAccount
+from backend.db_models import MediaAsset, OAuthState, SocialAccount
+from backend.media_service import download_media_bytes
 from backend.security import decrypt_text, encrypt_text
 
 
@@ -14,6 +15,7 @@ LINKEDIN_AUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 LINKEDIN_USERINFO_URL = "https://api.linkedin.com/v2/userinfo"
 LINKEDIN_UGC_POST_URL = "https://api.linkedin.com/v2/ugcPosts"
+LINKEDIN_ASSETS_URL = "https://api.linkedin.com/v2/assets?action=registerUpload"
 
 
 def _state_serializer() -> URLSafeTimedSerializer:
@@ -122,7 +124,80 @@ def handle_linkedin_callback(db: Session, code: str, state: str) -> str:
     return user_id
 
 
-def publish_to_linkedin(db: Session, user_id: str, content: str) -> dict:
+def _register_linkedin_asset(token: str, owner_urn: str, mime_type: str) -> tuple[str, str]:
+    recipe = "urn:li:digitalmediaRecipe:feedshare-image"
+    if mime_type == "application/pdf":
+        recipe = "urn:li:digitalmediaRecipe:feedshare-document"
+
+    payload = {
+        "registerUploadRequest": {
+            "recipes": [recipe],
+            "owner": owner_urn,
+            "serviceRelationships": [{"relationshipType": "OWNER", "identifier": "urn:li:userGeneratedContent"}],
+        }
+    }
+    resp = requests.post(
+        LINKEDIN_ASSETS_URL,
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "X-Restli-Protocol-Version": "2.0.0",
+            "Content-Type": "application/json",
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    data = resp.json().get("value", {})
+    asset = data.get("asset", "")
+    upload_url = (
+        data.get("uploadMechanism", {})
+        .get("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest", {})
+        .get("uploadUrl", "")
+    )
+    if not asset or not upload_url:
+        raise RuntimeError("LinkedIn asset register response incomplete")
+    return asset, upload_url
+
+
+def _upload_linkedin_binary(upload_url: str, token: str, mime_type: str, content: bytes) -> None:
+    upload_resp = requests.put(
+        upload_url,
+        data=content,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": mime_type,
+        },
+        timeout=60,
+    )
+    if upload_resp.status_code >= 400:
+        raise RuntimeError(f"LinkedIn binary upload failed: {upload_resp.status_code} {upload_resp.text[:200]}")
+
+
+def _ensure_linkedin_media_assets(token: str, owner_urn: str, media_items: list[MediaAsset]) -> None:
+    for item in media_items:
+        if item.platform_asset_id:
+            continue
+
+        last_error = ""
+        for _ in range(3):
+            try:
+                asset, upload_url = _register_linkedin_asset(token, owner_urn, item.mime_type)
+                blob = download_media_bytes(item.storage_path)
+                _upload_linkedin_binary(upload_url, token, item.mime_type, blob)
+                item.platform_asset_id = asset
+                item.upload_status = "uploaded"
+                item.last_error = ""
+                break
+            except Exception as exc:
+                last_error = str(exc)
+                item.upload_status = "failed"
+                item.last_error = last_error
+
+        if not item.platform_asset_id:
+            raise RuntimeError(f"Media upload failed for {item.file_name}: {last_error}")
+
+
+def publish_to_linkedin(db: Session, user_id: str, content: str, media_items: list[MediaAsset] | None = None) -> dict:
     account = (
         db.query(SocialAccount)
         .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "linkedin")
@@ -133,6 +208,24 @@ def publish_to_linkedin(db: Session, user_id: str, content: str) -> dict:
 
     token = decrypt_text(account.access_token_enc)
     author = f"urn:li:person:{account.account_id}"
+    media_items = media_items or []
+    _ensure_linkedin_media_assets(token, author, media_items)
+
+    share_media_category = "NONE"
+    share_media = []
+    if media_items:
+        if any(item.mime_type == "application/pdf" for item in media_items):
+            share_media_category = "NONE"
+        else:
+            share_media_category = "IMAGE"
+            for item in media_items:
+                share_media.append(
+                    {
+                        "status": "READY",
+                        "media": item.platform_asset_id,
+                        "title": {"text": item.file_name},
+                    }
+                )
 
     payload = {
         "author": author,
@@ -140,7 +233,8 @@ def publish_to_linkedin(db: Session, user_id: str, content: str) -> dict:
         "specificContent": {
             "com.linkedin.ugc.ShareContent": {
                 "shareCommentary": {"text": content},
-                "shareMediaCategory": "NONE",
+                "shareMediaCategory": share_media_category,
+                "media": share_media,
             }
         },
         "visibility": {"com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"},
@@ -159,6 +253,8 @@ def publish_to_linkedin(db: Session, user_id: str, content: str) -> dict:
 
     if response.status_code >= 400:
         raise RuntimeError(f"LinkedIn publish failed: {response.status_code} {response.text[:300]}")
+
+    db.commit()
 
     return {
         "external_post_id": response.headers.get("x-restli-id", ""),

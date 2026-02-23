@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session
 from backend.ai_service import generate_platform_posts
 from backend.auth import get_current_user_id
 from backend.database import SessionLocal, get_db, init_db
-from backend.db_models import GeneratedPost, PostStatus, SocialAccount
+from backend.db_models import GeneratedPost, MediaAsset, PostStatus, SocialAccount
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
+from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
 from backend.scheduler import create_scheduler
 from backend.schemas import (
     GenerateRequest,
@@ -23,6 +24,8 @@ from backend.schemas import (
     SocialAccountResponse,
     LinkedInConnectStartResponse,
     HistoryResponse,
+    MediaAssetResponse,
+    UploadMediaRequest,
 )
 from config.settings import settings
 
@@ -51,6 +54,22 @@ def _serialize_post(post: GeneratedPost) -> DraftPost:
         posted_at=post.posted_at,
         last_error=post.last_error,
         created_at=post.created_at,
+    )
+
+
+def _serialize_media(item: MediaAsset) -> MediaAssetResponse:
+    return MediaAssetResponse(
+        id=item.id,
+        post_id=item.post_id,
+        platform=item.platform,
+        file_name=item.file_name,
+        mime_type=item.mime_type,
+        file_size=item.file_size,
+        file_url=item.file_url,
+        platform_asset_id=item.platform_asset_id,
+        upload_status=item.upload_status,
+        last_error=item.last_error,
+        created_at=item.created_at,
     )
 
 
@@ -195,9 +214,11 @@ def publish_post_now(
         raise HTTPException(status_code=400, detail="Post must be approved or scheduled before publishing")
 
     content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
+    media = list_post_media(db, user_id, post.id)
+    refresh_media_signed_urls(db, media)
 
     try:
-        result = publish_to_linkedin(db, user_id, content)
+        result = publish_to_linkedin(db, user_id, content, media_items=media)
         post.status = PostStatus.posted.value
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")
@@ -212,6 +233,37 @@ def publish_post_now(
     db.commit()
     db.refresh(post)
     return _serialize_post(post)
+
+
+@app.post("/api/uploads", response_model=MediaAssetResponse)
+def upload_media(
+    payload: UploadMediaRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> MediaAssetResponse:
+    try:
+        row = upload_media_base64(
+            db=db,
+            user_id=user_id,
+            post_id=payload.post_id,
+            file_name=payload.file_name,
+            mime_type=payload.mime_type,
+            content_base64=payload.content_base64,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _serialize_media(row)
+
+
+@app.get("/api/posts/{post_id}/media", response_model=list[MediaAssetResponse])
+def list_media(
+    post_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> list[MediaAssetResponse]:
+    items = list_post_media(db, user_id, post_id)
+    refresh_media_signed_urls(db, items)
+    return [_serialize_media(x) for x in items]
 
 
 @app.get("/api/social-accounts", response_model=list[SocialAccountResponse])

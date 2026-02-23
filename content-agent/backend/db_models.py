@@ -66,3 +66,22 @@ class OAuthState(Base):
     provider: Mapped[str] = mapped_column(String(32), index=True)
     state_token: Mapped[str] = mapped_column(String(256), index=True, unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("generated_posts.id"), index=True)
+    platform: Mapped[str] = mapped_column(String(24), default="linkedin", index=True)
+    file_name: Mapped[str] = mapped_column(String(256))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    file_size: Mapped[int] = mapped_column(default=0)
+    storage_path: Mapped[str] = mapped_column(String(512))
+    file_url: Mapped[str] = mapped_column(Text, default="")
+    platform_asset_id: Mapped[str] = mapped_column(String(256), default="")
+    upload_status: Mapped[str] = mapped_column(String(24), default="uploaded", index=True)
+    last_error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

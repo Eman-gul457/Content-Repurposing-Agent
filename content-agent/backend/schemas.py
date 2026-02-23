@@ -25,6 +25,27 @@ class GenerateResponse(BaseModel):
     drafts: list[DraftPost]
 
 
+class MediaAssetResponse(BaseModel):
+    id: int
+    post_id: int
+    platform: str
+    file_name: str
+    mime_type: str
+    file_size: int
+    file_url: str
+    platform_asset_id: str
+    upload_status: str
+    last_error: str
+    created_at: datetime
+
+
+class UploadMediaRequest(BaseModel):
+    post_id: int
+    file_name: str
+    mime_type: str
+    content_base64: str
+
+
 class UpdatePostRequest(BaseModel):
     edited_text: str
 
