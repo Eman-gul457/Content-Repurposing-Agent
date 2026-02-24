@@ -14,16 +14,19 @@ module.exports = async (req, res) => {
   const queryString = forwardedQuery.toString();
   const target = `${backendBase}/api/${path}${queryString ? `?${queryString}` : ""}`;
 
-  const headers = { ...req.headers };
-  delete headers.host;
-  delete headers.connection;
-  delete headers["content-length"];
+  const headers = {};
+  if (req.headers.authorization) headers.Authorization = req.headers.authorization;
+  if (req.headers["content-type"]) headers["Content-Type"] = req.headers["content-type"];
 
   const method = req.method || "GET";
   const init = { method, headers, redirect: "manual" };
 
   if (!["GET", "HEAD"].includes(method)) {
-    init.body = JSON.stringify(req.body ?? {});
+    if (typeof req.body === "string") {
+      init.body = req.body;
+    } else if (req.body && Object.keys(req.body).length > 0) {
+      init.body = JSON.stringify(req.body);
+    }
   }
 
   try {
