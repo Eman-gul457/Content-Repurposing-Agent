@@ -320,12 +320,15 @@ async function loadPlans(limit = 25) {
   data.forEach((item) => {
     const node = document.createElement("div");
     node.className = "plan-item";
+    const previewUrl = item.image_prompt
+      ? `https://pollinations.ai/p/${encodeURIComponent(item.image_prompt)}`
+      : item.image_url;
     node.innerHTML = `
       <strong>${item.platform.toUpperCase()}</strong> - ${item.status}<br/>
       <small>Planned: ${item.planned_for ? new Date(item.planned_for).toLocaleString() : "N/A"}</small><br/>
       <small>Theme: ${item.theme}</small><br/>
       <small>Angle: ${item.post_angle}</small><br/>
-      ${item.image_url ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Preview Pollinations image</a>` : ""}
+      ${previewUrl ? `<a href="${previewUrl}" target="_blank" rel="noopener noreferrer">Preview AI image</a>` : ""}
     `;
     plansList.appendChild(node);
   });
