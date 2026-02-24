@@ -3,6 +3,14 @@ import requests
 from config.settings import settings
 
 FALLBACK_MODELS = [settings.groq_model, "llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
+SUPPORTED_PLATFORMS = ["linkedin", "twitter", "facebook", "instagram", "blog_summary"]
+PLATFORM_PROMPTS = {
+    "linkedin": "Write one professional LinkedIn post with strong hook, 3 key points, and CTA.",
+    "twitter": "Write one X/Twitter thread (4-6 tweets) in numbered format 1/,2/.",
+    "facebook": "Write one Facebook post in conversational brand tone with CTA.",
+    "instagram": "Write one Instagram caption with strong hook, CTA, and 6-10 relevant hashtags.",
+    "blog_summary": "Write a concise blog-style summary with key takeaways in professional tone.",
+}
 
 
 def _generate(content: str, instruction: str) -> str:
@@ -40,12 +48,32 @@ def _generate(content: str, instruction: str) -> str:
     raise RuntimeError(f"Groq generation failed: {last_error}")
 
 
-def generate_platform_posts(content: str) -> dict[str, str]:
-    prompts = {
-        "linkedin": "Write one professional LinkedIn post with strong hook and CTA.",
-        "twitter": "Write one X/Twitter thread (4-6 tweets) with numbered format 1/,2/.",
-        "facebook": "Write one Facebook post in conversational brand tone with CTA.",
-        "instagram": "Write one Instagram caption with strong hook, CTA, and 6-10 relevant hashtags.",
-        "blog_summary": "Write a concise blog-style summary with clear key takeaways in a professional tone.",
-    }
-    return {platform: _generate(content, prompt) for platform, prompt in prompts.items()}
+def _language_instruction(language_pref: str) -> str:
+    pref = (language_pref or "english_urdu").strip().lower()
+    if pref == "english":
+        return "Return only English."
+    if pref == "urdu":
+        return "Return only Urdu in clear unicode script."
+    return "Return bilingual output: English first then Urdu."
+
+
+def generate_platform_posts(
+    content: str,
+    platforms: list[str] | None = None,
+    language_pref: str = "english_urdu",
+    profile_context: str = "",
+) -> dict[str, str]:
+    selected = platforms or SUPPORTED_PLATFORMS
+    selected = [x for x in selected if x in SUPPORTED_PLATFORMS]
+    if not selected:
+        selected = ["linkedin", "twitter"]
+
+    lang_line = _language_instruction(language_pref)
+    context_line = f"Business context: {profile_context.strip()}" if profile_context.strip() else ""
+
+    outputs: dict[str, str] = {}
+    for platform in selected:
+        base_prompt = PLATFORM_PROMPTS.get(platform, PLATFORM_PROMPTS["linkedin"])
+        instruction = f"{base_prompt}\n{lang_line}\n{context_line}".strip()
+        outputs[platform] = _generate(content, instruction)
+    return outputs

@@ -9,23 +9,38 @@ from sqlalchemy.orm import Session
 from backend.ai_service import generate_platform_posts
 from backend.auth import get_current_user_id
 from backend.database import SessionLocal, get_db, init_db
-from backend.db_models import GeneratedPost, MediaAsset, PostStatus, SocialAccount
+from backend.db_models import (
+    AgentRun,
+    ApprovalRequest,
+    ContentPlan,
+    GeneratedPost,
+    MediaAsset,
+    PostStatus,
+    PublishJob,
+    ResearchItem,
+    SocialAccount,
+)
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
 from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
+from backend.planning_service import create_content_plans
+from backend.research_service import collect_research_items
 from backend.scheduler import create_scheduler
 from backend.twitter_service import create_twitter_authorization_url, handle_twitter_callback
 from backend.schemas import (
+    AgentRunResponse,
+    ContentPlanResponse,
     GenerateRequest,
     GenerateResponse,
     DraftPost,
+    HistoryResponse,
+    LinkedInConnectStartResponse,
+    MediaAssetResponse,
+    PublishNowRequest,
+    ResearchItemResponse,
+    ScheduleRequest,
     UpdatePostRequest,
     UpdateStatusRequest,
-    ScheduleRequest,
-    PublishNowRequest,
     SocialAccountResponse,
-    LinkedInConnectStartResponse,
-    HistoryResponse,
-    MediaAssetResponse,
     UploadMediaRequest,
 )
 from config.settings import settings
@@ -74,6 +89,88 @@ def _serialize_media(item: MediaAsset) -> MediaAssetResponse:
     )
 
 
+def _serialize_research(item: ResearchItem) -> ResearchItemResponse:
+    return ResearchItemResponse(
+        id=item.id,
+        source=item.source,
+        title=item.title,
+        url=item.url,
+        snippet=item.snippet,
+        published_at=item.published_at,
+        created_at=item.created_at,
+    )
+
+
+def _serialize_plan(item: ContentPlan) -> ContentPlanResponse:
+    return ContentPlanResponse(
+        id=item.id,
+        platform=item.platform,
+        language_pref=item.language_pref,
+        planned_for=item.planned_for,
+        status=item.status,
+        theme=item.theme,
+        post_angle=item.post_angle,
+        image_prompt=item.image_prompt,
+        image_url=item.image_url,
+        created_at=item.created_at,
+    )
+
+
+def _ensure_approval_request(db: Session, user_id: str, post_id: int) -> None:
+    row = (
+        db.query(ApprovalRequest)
+        .filter(ApprovalRequest.user_id == user_id, ApprovalRequest.post_id == post_id)
+        .first()
+    )
+    if row:
+        return
+    db.add(
+        ApprovalRequest(
+            user_id=user_id,
+            post_id=post_id,
+            status="pending",
+            requested_at=datetime.utcnow(),
+        )
+    )
+
+
+def _touch_publish_job(
+    db: Session,
+    post: GeneratedPost,
+    *,
+    status: str,
+    error_message: str = "",
+    scheduled_at: datetime | None = None,
+    attempted: bool = False,
+    completed: bool = False,
+) -> None:
+    row = (
+        db.query(PublishJob)
+        .filter(PublishJob.user_id == post.user_id, PublishJob.post_id == post.id)
+        .first()
+    )
+    if not row:
+        row = PublishJob(
+            user_id=post.user_id,
+            post_id=post.id,
+            platform=post.platform,
+            status=status,
+            scheduled_at=scheduled_at,
+            error_message=error_message,
+        )
+        db.add(row)
+    else:
+        row.status = status
+        if scheduled_at is not None:
+            row.scheduled_at = scheduled_at
+        row.error_message = error_message
+    now = datetime.utcnow()
+    if attempted:
+        row.attempted_at = now
+    if completed:
+        row.completed_at = now
+
+
 @app.on_event("startup")
 def startup() -> None:
     global scheduler
@@ -93,36 +190,126 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def _run_agent_workflow(
+    db: Session,
+    user_id: str,
+    payload: GenerateRequest,
+) -> tuple[AgentRun, list[ResearchItem], list[ContentPlan], list[GeneratedPost]]:
+    content = payload.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Content cannot be empty")
+
+    platforms = payload.platforms or ["linkedin", "twitter", "facebook", "instagram", "blog_summary"]
+    profile_context = (
+        f"Business={payload.business_name}; Niche={payload.niche}; Audience={payload.audience}; "
+        f"Tone={payload.tone}; Region={payload.region}; Platforms={','.join(platforms)}"
+    )
+
+    run = AgentRun(
+        user_id=user_id,
+        business_name=payload.business_name.strip(),
+        niche=payload.niche.strip(),
+        audience=payload.audience.strip(),
+        tone=payload.tone.strip(),
+        region=payload.region.strip(),
+        platforms_csv=",".join(platforms),
+        language_pref=payload.language_pref,
+        source_content=content,
+        status="running",
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+
+    try:
+        research_items = collect_research_items(
+            db=db,
+            user_id=user_id,
+            run_id=run.id,
+            business_name=payload.business_name,
+            niche=payload.niche,
+            region=payload.region,
+            audience=payload.audience,
+        )
+        plans = create_content_plans(
+            db=db,
+            user_id=user_id,
+            run_id=run.id,
+            platforms=platforms,
+            language_pref=payload.language_pref,
+            timezone_name=settings.timezone,
+            research_items=research_items,
+            posts_per_week=3,
+        )
+
+        research_summary = "\n".join(
+            [f"- {x.title}: {x.snippet[:180]}" for x in research_items[:3] if x.title]
+        )
+        source_text = f"{content}\n\nResearch highlights:\n{research_summary}".strip()
+        outputs = generate_platform_posts(
+            content=source_text,
+            platforms=platforms,
+            language_pref=payload.language_pref,
+            profile_context=profile_context,
+        )
+        created_posts: list[GeneratedPost] = []
+        for platform, text in outputs.items():
+            row = GeneratedPost(
+                user_id=user_id,
+                platform=platform,
+                input_content=content,
+                generated_text=text,
+                edited_text="",
+                status=PostStatus.draft.value,
+            )
+            db.add(row)
+            created_posts.append(row)
+
+        db.commit()
+        for row in created_posts:
+            db.refresh(row)
+            _ensure_approval_request(db, user_id, row.id)
+            _touch_publish_job(db, row, status="draft")
+        db.commit()
+
+        run.status = "completed"
+        run.completed_at = datetime.utcnow()
+        run.error_text = ""
+        db.commit()
+        db.refresh(run)
+        return run, research_items, plans, created_posts
+    except Exception as exc:
+        run.status = "failed"
+        run.error_text = str(exc)
+        run.completed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(run)
+        raise
+
+
 @app.post("/api/generate", response_model=GenerateResponse)
 def generate_content(
     payload: GenerateRequest,
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> GenerateResponse:
-    content = payload.content.strip()
-    if not content:
-        raise HTTPException(status_code=400, detail="Content cannot be empty")
-
-    outputs = generate_platform_posts(content)
-    created: list[GeneratedPost] = []
-
-    for platform, text in outputs.items():
-        row = GeneratedPost(
-            user_id=user_id,
-            platform=platform,
-            input_content=content,
-            generated_text=text,
-            edited_text="",
-            status=PostStatus.draft.value,
-        )
-        db.add(row)
-        created.append(row)
-
-    db.commit()
-    for row in created:
-        db.refresh(row)
-
+    _, _, _, created = _run_agent_workflow(db=db, user_id=user_id, payload=payload)
     return GenerateResponse(drafts=[_serialize_post(row) for row in created])
+
+
+@app.post("/api/agent/run", response_model=AgentRunResponse)
+def agent_run(
+    payload: GenerateRequest,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> AgentRunResponse:
+    run, research_items, plans, created = _run_agent_workflow(db=db, user_id=user_id, payload=payload)
+    return AgentRunResponse(
+        run_id=run.id,
+        drafts=[_serialize_post(x) for x in created],
+        research_items=[_serialize_research(x) for x in research_items],
+        content_plans=[_serialize_plan(x) for x in plans],
+    )
 
 
 @app.get("/api/drafts", response_model=HistoryResponse)
@@ -137,6 +324,36 @@ def get_drafts(
         .all()
     )
     return HistoryResponse(posts=[_serialize_post(r) for r in rows])
+
+
+@app.get("/api/research", response_model=list[ResearchItemResponse])
+def get_research(
+    limit: int = Query(default=30, ge=1, le=100),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> list[ResearchItemResponse]:
+    rows = (
+        db.query(ResearchItem)
+        .filter(ResearchItem.user_id == user_id)
+        .order_by(ResearchItem.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_serialize_research(r) for r in rows]
+
+
+@app.get("/api/content-plans", response_model=list[ContentPlanResponse])
+def get_content_plans(
+    run_id: int | None = Query(default=None),
+    limit: int = Query(default=60, ge=1, le=200),
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> list[ContentPlanResponse]:
+    q = db.query(ContentPlan).filter(ContentPlan.user_id == user_id)
+    if run_id:
+        q = q.filter(ContentPlan.run_id == run_id)
+    rows = q.order_by(ContentPlan.created_at.desc()).limit(limit).all()
+    return [_serialize_plan(r) for r in rows]
 
 
 @app.patch("/api/posts/{post_id}", response_model=DraftPost)
@@ -170,6 +387,26 @@ def update_status(
 
     post.status = payload.status
     post.updated_at = datetime.utcnow()
+    approval = (
+        db.query(ApprovalRequest)
+        .filter(ApprovalRequest.user_id == user_id, ApprovalRequest.post_id == post.id)
+        .first()
+    )
+    if not approval:
+        approval = ApprovalRequest(user_id=user_id, post_id=post.id, status="pending", requested_at=datetime.utcnow())
+        db.add(approval)
+    if payload.status == "approved":
+        approval.status = "approved"
+        approval.resolved_at = datetime.utcnow()
+        approval.resolution_note = "Approved from dashboard"
+    elif payload.status == "rejected":
+        approval.status = "rejected"
+        approval.resolved_at = datetime.utcnow()
+        approval.resolution_note = "Rejected from dashboard"
+    else:
+        approval.status = "pending"
+        approval.resolved_at = None
+        approval.resolution_note = ""
     db.commit()
     db.refresh(post)
     return _serialize_post(post)
@@ -189,6 +426,7 @@ def schedule_post(
     post.status = PostStatus.scheduled.value
     post.scheduled_at = payload.scheduled_at.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
     post.updated_at = datetime.utcnow()
+    _touch_publish_job(db, post, status="scheduled", scheduled_at=post.scheduled_at)
     db.commit()
     db.refresh(post)
     return _serialize_post(post)
@@ -216,6 +454,14 @@ def publish_post_now(
 
     content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
     if post.platform == "twitter":
+        _touch_publish_job(
+            db,
+            post,
+            status="failed",
+            error_message="Twitter free mode requires manual publish",
+            attempted=True,
+        )
+        db.commit()
         raise HTTPException(
             status_code=400,
             detail="Twitter is on free mode. Use manual publish from the dashboard.",
@@ -229,9 +475,11 @@ def publish_post_now(
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")
         post.last_error = ""
+        _touch_publish_job(db, post, status="posted", attempted=True, completed=True, error_message="")
     except Exception as exc:
         post.status = PostStatus.failed.value
         post.last_error = str(exc)
+        _touch_publish_job(db, post, status="failed", attempted=True, error_message=str(exc))
         db.commit()
         db.refresh(post)
         raise HTTPException(status_code=500, detail=f"Publish failed: {exc}") from exc
@@ -263,6 +511,7 @@ def manual_publish_post(
     post.posted_at = datetime.utcnow()
     post.external_post_id = "manual://twitter-intent"
     post.last_error = ""
+    _touch_publish_job(db, post, status="posted", attempted=True, completed=True, error_message="")
     db.commit()
     db.refresh(post)
     return _serialize_post(post)
@@ -327,6 +576,7 @@ def social_accounts(
             account_name=twitter.account_name if twitter else None,
         ),
         SocialAccountResponse(platform="facebook", connected=False, account_name=None),
+        SocialAccountResponse(platform="instagram", connected=False, account_name=None),
     ]
 
 
@@ -346,6 +596,22 @@ def twitter_connect_start(
 ) -> LinkedInConnectStartResponse:
     url = create_twitter_authorization_url(db, user_id)
     return LinkedInConnectStartResponse(authorization_url=url)
+
+
+@app.get("/api/facebook/connect/start", response_model=LinkedInConnectStartResponse)
+def facebook_connect_start(
+    user_id: str = Depends(get_current_user_id),
+) -> LinkedInConnectStartResponse:
+    _ = user_id
+    raise HTTPException(status_code=501, detail="Facebook credentials not configured yet")
+
+
+@app.get("/api/instagram/connect/start", response_model=LinkedInConnectStartResponse)
+def instagram_connect_start(
+    user_id: str = Depends(get_current_user_id),
+) -> LinkedInConnectStartResponse:
+    _ = user_id
+    raise HTTPException(status_code=501, detail="Instagram credentials not configured yet")
 
 
 @app.get("/api/linkedin/connect/callback")

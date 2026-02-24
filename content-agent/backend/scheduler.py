@@ -3,9 +3,27 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
-from backend.db_models import GeneratedPost, PostStatus
+from backend.db_models import GeneratedPost, PostStatus, PublishJob
 from backend.media_service import list_post_media, refresh_media_signed_urls
 from backend.linkedin_service import publish_to_linkedin
+
+
+def _touch_job(db: Session, post: GeneratedPost, status: str, error: str = "") -> None:
+    row = (
+        db.query(PublishJob)
+        .filter(PublishJob.user_id == post.user_id, PublishJob.post_id == post.id)
+        .first()
+    )
+    if not row:
+        row = PublishJob(user_id=post.user_id, post_id=post.id, platform=post.platform, status=status)
+        db.add(row)
+    else:
+        row.status = status
+    now = datetime.utcnow()
+    row.attempted_at = now
+    if status == "posted":
+        row.completed_at = now
+    row.error_message = error
 
 
 def process_scheduled_posts(db: Session) -> None:
@@ -26,21 +44,25 @@ def process_scheduled_posts(db: Session) -> None:
             elif post.platform == "twitter":
                 post.status = PostStatus.failed.value
                 post.last_error = "Twitter free mode does not support automatic scheduling/publishing."
+                _touch_job(db, post, "failed", post.last_error)
                 db.commit()
                 continue
             else:
                 post.status = PostStatus.failed.value
                 post.last_error = f"Unsupported platform for scheduling: {post.platform}"
+                _touch_job(db, post, "failed", post.last_error)
                 db.commit()
                 continue
             post.status = PostStatus.posted.value
             post.posted_at = now
             post.external_post_id = result.get("external_post_id", "")
             post.last_error = ""
+            _touch_job(db, post, "posted", "")
             db.commit()
         except Exception as exc:
             post.status = PostStatus.failed.value
             post.last_error = str(exc)
+            _touch_job(db, post, "failed", str(exc))
             db.commit()
 
 

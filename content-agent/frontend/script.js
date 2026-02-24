@@ -7,11 +7,21 @@ const logoutBtn = document.getElementById("logoutBtn");
 const authState = document.getElementById("authState");
 const socialSection = document.getElementById("socialSection");
 const generatorSection = document.getElementById("generatorSection");
+const researchSection = document.getElementById("researchSection");
+const plansSection = document.getElementById("plansSection");
 const draftsSection = document.getElementById("draftsSection");
 const historySection = document.getElementById("historySection");
 const contentInput = document.getElementById("contentInput");
+const businessNameInput = document.getElementById("businessNameInput");
+const nicheInput = document.getElementById("nicheInput");
+const audienceInput = document.getElementById("audienceInput");
+const toneInput = document.getElementById("toneInput");
+const regionInput = document.getElementById("regionInput");
+const languagePrefInput = document.getElementById("languagePrefInput");
 const generateBtn = document.getElementById("generateBtn");
 const statusText = document.getElementById("statusText");
+const researchList = document.getElementById("researchList");
+const plansList = document.getElementById("plansList");
 const draftsList = document.getElementById("draftsList");
 const historyList = document.getElementById("historyList");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
@@ -19,6 +29,8 @@ const linkedinStatus = document.getElementById("linkedinStatus");
 const connectLinkedInBtn = document.getElementById("connectLinkedInBtn");
 const twitterStatus = document.getElementById("twitterStatus");
 const connectTwitterBtn = document.getElementById("connectTwitterBtn");
+const facebookStatus = document.getElementById("facebookStatus");
+const instagramStatus = document.getElementById("instagramStatus");
 
 let currentSession = null;
 
@@ -27,6 +39,8 @@ function setAuthedUI(isAuthed, email = "") {
   logoutBtn.hidden = !isAuthed;
   socialSection.hidden = !isAuthed;
   generatorSection.hidden = !isAuthed;
+  researchSection.hidden = !isAuthed;
+  plansSection.hidden = !isAuthed;
   draftsSection.hidden = !isAuthed;
   historySection.hidden = !isAuthed;
   authState.textContent = isAuthed ? `Logged in: ${email}` : "Not logged in";
@@ -258,12 +272,63 @@ function renderDraft(post) {
   return wrapper;
 }
 
+function getSelectedPlatforms() {
+  const boxes = Array.from(document.querySelectorAll('input[name="platform"]:checked'));
+  return boxes.map((x) => x.value);
+}
+
 async function loadSocial() {
   const data = await api("/api/social-accounts");
   const linkedin = data.find((x) => x.platform === "linkedin");
   const twitter = data.find((x) => x.platform === "twitter");
+  const facebook = data.find((x) => x.platform === "facebook");
+  const instagram = data.find((x) => x.platform === "instagram");
   linkedinStatus.textContent = linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected";
   twitterStatus.textContent = twitter?.connected ? `Connected: ${twitter.account_name || "Twitter"}` : "Not connected";
+  facebookStatus.textContent = facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected";
+  instagramStatus.textContent = instagram?.connected ? `Connected: ${instagram.account_name || "Instagram"}` : "Not connected";
+}
+
+async function loadResearch(limit = 20) {
+  const data = await api(`/api/research?limit=${limit}`, { method: "GET" });
+  researchList.innerHTML = "";
+  if (!data.length) {
+    researchList.innerHTML = "<p class='muted'>No research items yet. Run workflow to collect trends.</p>";
+    return;
+  }
+  data.forEach((item) => {
+    const node = document.createElement("div");
+    node.className = "research-item";
+    const link = item.url ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title}</a>` : item.title;
+    node.innerHTML = `
+      <strong>${item.source.toUpperCase()}</strong><br/>
+      ${link}<br/>
+      <small>${item.snippet || ""}</small><br/>
+      <small>${new Date(item.created_at).toLocaleString()}</small>
+    `;
+    researchList.appendChild(node);
+  });
+}
+
+async function loadPlans(limit = 25) {
+  const data = await api(`/api/content-plans?limit=${limit}`, { method: "GET" });
+  plansList.innerHTML = "";
+  if (!data.length) {
+    plansList.innerHTML = "<p class='muted'>No plans yet. Run workflow to create weekly schedule.</p>";
+    return;
+  }
+  data.forEach((item) => {
+    const node = document.createElement("div");
+    node.className = "plan-item";
+    node.innerHTML = `
+      <strong>${item.platform.toUpperCase()}</strong> - ${item.status}<br/>
+      <small>Planned: ${item.planned_for ? new Date(item.planned_for).toLocaleString() : "N/A"}</small><br/>
+      <small>Theme: ${item.theme}</small><br/>
+      <small>Angle: ${item.post_angle}</small><br/>
+      ${item.image_url ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Preview Pollinations image</a>` : ""}
+    `;
+    plansList.appendChild(node);
+  });
 }
 
 async function loadDrafts() {
@@ -305,14 +370,32 @@ generateBtn.addEventListener("click", async () => {
     statusText.textContent = "Please enter content.";
     return;
   }
+  const platforms = getSelectedPlatforms();
+  if (!platforms.length) {
+    statusText.textContent = "Select at least one platform.";
+    return;
+  }
 
-  statusText.textContent = "Generating drafts...";
+  const payload = {
+    content,
+    business_name: (businessNameInput.value || "").trim(),
+    niche: (nicheInput.value || "").trim(),
+    audience: (audienceInput.value || "").trim(),
+    tone: (toneInput.value || "").trim(),
+    region: (regionInput.value || "").trim(),
+    platforms,
+    language_pref: languagePrefInput.value || "english_urdu",
+  };
+
+  statusText.textContent = "Running research + planning + creation...";
   try {
-    await api("/api/generate", {
+    const result = await api("/api/agent/run", {
       method: "POST",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(payload),
     });
-    statusText.textContent = "Drafts generated.";
+    statusText.textContent = `Workflow complete. Run #${result.run_id}`;
+    await loadResearch();
+    await loadPlans();
     await loadDrafts();
     await loadHistory();
   } catch (err) {
@@ -370,6 +453,8 @@ async function bootstrap() {
     if (session) {
       setAuthedUI(true, session.user?.email || "");
       await loadSocial();
+      await loadResearch();
+      await loadPlans();
       await loadDrafts();
       await loadHistory();
     } else {
@@ -387,8 +472,10 @@ async function bootstrap() {
 
   const email = currentSession.user?.email || "";
   setAuthedUI(true, email);
+  if (!toneInput.value) toneInput.value = "Professional";
+  if (!regionInput.value) regionInput.value = "Pakistan";
 
-  await Promise.all([loadSocial(), loadDrafts(), loadHistory()]);
+  await Promise.all([loadSocial(), loadResearch(), loadPlans(), loadDrafts(), loadHistory()]);
 
   const params = new URLSearchParams(window.location.search);
   if (params.get("linkedin") === "connected") {

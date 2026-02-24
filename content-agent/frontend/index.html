@@ -12,7 +12,7 @@
   <main class="container">
     <header class="hero">
       <h1>AI Content SaaS</h1>
-      <p>Generate, review, approve, schedule, and publish LinkedIn content.</p>
+      <p>Research, plan, create, approve, and publish content with English + Urdu support.</p>
       <div class="auth-row">
         <button id="googleLoginBtn">Login with Google</button>
         <button id="logoutBtn" class="secondary" hidden>Logout</button>
@@ -32,16 +32,55 @@
         <span id="twitterStatus">Not connected</span>
         <button id="connectTwitterBtn" class="secondary">Connect Twitter</button>
       </div>
-      <p class="muted">Twitter runs in free manual mode (opens X composer). Facebook and Instagram will be enabled next.</p>
+      <div class="social-item">
+        <strong>Facebook</strong>
+        <span id="facebookStatus">Not connected</span>
+        <button id="connectFacebookBtn" class="secondary" disabled>Connect Facebook</button>
+      </div>
+      <div class="social-item">
+        <strong>Instagram</strong>
+        <span id="instagramStatus">Not connected</span>
+        <button id="connectInstagramBtn" class="secondary" disabled>Connect Instagram</button>
+      </div>
+      <p class="muted">Twitter runs in free manual mode (opens X composer). Facebook/Instagram will be activated when credentials are added.</p>
     </section>
 
     <section class="card" id="generatorSection" hidden>
-      <h2>Generate Content</h2>
+      <h2>Run AI Agent</h2>
+      <div class="profile-grid">
+        <input id="businessNameInput" type="text" placeholder="Business name" />
+        <input id="nicheInput" type="text" placeholder="Niche (e.g. solar energy, healthcare SaaS)" />
+        <input id="audienceInput" type="text" placeholder="Audience (e.g. founders, doctors, students)" />
+        <input id="toneInput" type="text" placeholder="Tone (e.g. professional, bold, friendly)" />
+        <input id="regionInput" type="text" placeholder="Region (e.g. Pakistan, GCC, Global)" />
+        <select id="languagePrefInput">
+          <option value="english_urdu" selected>English + Urdu</option>
+          <option value="english">English</option>
+          <option value="urdu">Urdu</option>
+        </select>
+      </div>
+      <div class="platform-row">
+        <label><input type="checkbox" name="platform" value="linkedin" checked /> LinkedIn</label>
+        <label><input type="checkbox" name="platform" value="twitter" checked /> Twitter/X</label>
+        <label><input type="checkbox" name="platform" value="facebook" checked /> Facebook</label>
+        <label><input type="checkbox" name="platform" value="instagram" checked /> Instagram</label>
+        <label><input type="checkbox" name="platform" value="blog_summary" checked /> Blog Summary</label>
+      </div>
       <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
       <div class="row">
-        <button id="generateBtn">Generate Drafts</button>
+        <button id="generateBtn">Run Full Workflow</button>
         <span id="statusText"></span>
       </div>
+    </section>
+
+    <section class="card" id="researchSection" hidden>
+      <h2>Research (Daily max: 5)</h2>
+      <div id="researchList"></div>
+    </section>
+
+    <section class="card" id="plansSection" hidden>
+      <h2>Content Plans (2-5 posts/week)</h2>
+      <div id="plansList"></div>
     </section>
 
     <section class="card" id="draftsSection" hidden>

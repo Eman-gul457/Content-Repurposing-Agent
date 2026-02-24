@@ -64,3 +64,89 @@ create table if not exists media_assets (
 
 create index if not exists idx_media_assets_user on media_assets(user_id);
 create index if not exists idx_media_assets_post on media_assets(post_id);
+
+create table if not exists agent_runs (
+  id bigserial primary key,
+  user_id text not null,
+  business_name text default '',
+  niche text default '',
+  audience text default '',
+  tone text default '',
+  region text default '',
+  platforms_csv text default '',
+  language_pref text default 'english_urdu',
+  source_content text default '',
+  status text default 'running',
+  error_text text default '',
+  created_at timestamptz default now(),
+  completed_at timestamptz null
+);
+
+create index if not exists idx_agent_runs_user on agent_runs(user_id);
+create index if not exists idx_agent_runs_status on agent_runs(status);
+
+create table if not exists research_items (
+  id bigserial primary key,
+  user_id text not null,
+  run_id bigint null references agent_runs(id) on delete set null,
+  source text not null,
+  title text not null,
+  url text default '',
+  snippet text default '',
+  published_at timestamptz null,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_research_items_user on research_items(user_id);
+create index if not exists idx_research_items_run on research_items(run_id);
+
+create table if not exists content_plans (
+  id bigserial primary key,
+  user_id text not null,
+  run_id bigint null references agent_runs(id) on delete set null,
+  platform text not null,
+  language_pref text default 'english_urdu',
+  planned_for timestamptz null,
+  status text default 'planned',
+  theme text default '',
+  post_angle text default '',
+  image_prompt text default '',
+  image_url text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_content_plans_user on content_plans(user_id);
+create index if not exists idx_content_plans_run on content_plans(run_id);
+create index if not exists idx_content_plans_platform on content_plans(platform);
+
+create table if not exists approval_requests (
+  id bigserial primary key,
+  user_id text not null,
+  post_id bigint not null references generated_posts(id) on delete cascade,
+  status text default 'pending',
+  requested_at timestamptz default now(),
+  resolved_at timestamptz null,
+  resolution_note text default ''
+);
+
+create index if not exists idx_approval_requests_user on approval_requests(user_id);
+create index if not exists idx_approval_requests_post on approval_requests(post_id);
+
+create table if not exists publish_jobs (
+  id bigserial primary key,
+  user_id text not null,
+  post_id bigint not null references generated_posts(id) on delete cascade,
+  platform text not null,
+  status text default 'pending',
+  scheduled_at timestamptz null,
+  attempted_at timestamptz null,
+  completed_at timestamptz null,
+  error_message text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_publish_jobs_user on publish_jobs(user_id);
+create index if not exists idx_publish_jobs_post on publish_jobs(post_id);
+create index if not exists idx_publish_jobs_status on publish_jobs(status);
