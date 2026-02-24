@@ -261,7 +261,26 @@ button[id^="approve-"] {
 }
 
 .research-item a {
-  color: #8fc3ff;
+  color: #32d7a7;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.plan-item a {
+  color: #32d7a7;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.research-item a:visited,
+.plan-item a:visited {
+  color: #32d7a7;
+}
+
+.research-item a:hover,
+.plan-item a:hover {
+  color: #8ff4d7;
+  text-decoration: underline;
 }
 
 #statusText {
