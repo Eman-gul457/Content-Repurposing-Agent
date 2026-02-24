@@ -6,7 +6,6 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from backend.db_models import ContentPlan, ResearchItem
-from backend.pollinations_service import build_pollinations_image_url
 
 DEFAULT_POSTS_PER_WEEK = 3
 WEEKDAY_PATTERN = [0, 2, 4, 6, 1]  # Mon, Wed, Fri, Sun, Tue
@@ -70,7 +69,7 @@ def create_content_plans(
                 theme=theme,
                 post_angle=f"{platform} angle #{idx + 1}: insight + practical takeaway",
                 image_prompt=image_prompt,
-                image_url=build_pollinations_image_url(image_prompt),
+                image_url="",
             )
             db.add(row)
             plans.append(row)

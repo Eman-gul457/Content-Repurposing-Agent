@@ -260,6 +260,22 @@ button[id^="approve-"] {
   background: linear-gradient(180deg, #111a2a, #0e1523);
 }
 
+.plan-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.plan-preview {
+  margin-top: 10px;
+  width: min(100%, 360px);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: block;
+}
+
 .research-item a {
   color: #32d7a7;
   text-decoration: none;

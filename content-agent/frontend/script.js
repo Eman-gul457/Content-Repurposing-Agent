@@ -320,17 +320,35 @@ async function loadPlans(limit = 25) {
   data.forEach((item) => {
     const node = document.createElement("div");
     node.className = "plan-item";
-    const previewUrl = item.image_prompt
-      ? `https://pollinations.ai/p/${encodeURIComponent(item.image_prompt)}`
-      : item.image_url;
+    const hasGeneratedImage = !!item.image_url && !item.image_url.includes("pollinations.ai/p/");
     node.innerHTML = `
       <strong>${item.platform.toUpperCase()}</strong> - ${item.status}<br/>
       <small>Planned: ${item.planned_for ? new Date(item.planned_for).toLocaleString() : "N/A"}</small><br/>
       <small>Theme: ${item.theme}</small><br/>
       <small>Angle: ${item.post_angle}</small><br/>
-      ${previewUrl ? `<a href="${previewUrl}" target="_blank" rel="noopener noreferrer">Preview AI image</a>` : ""}
+      <div class="plan-actions">
+        <button class="secondary" id="gen-image-${item.id}" type="button">Generate Image</button>
+        ${hasGeneratedImage ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Open Image</a>` : "<small>Image not generated yet.</small>"}
+      </div>
+      ${hasGeneratedImage ? `<img class="plan-preview" src="${item.image_url}" alt="Plan ${item.id} preview" />` : ""}
     `;
     plansList.appendChild(node);
+
+    const btn = node.querySelector(`#gen-image-${item.id}`);
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        try {
+          btn.disabled = true;
+          btn.textContent = "Generating...";
+          await api(`/api/content-plans/${item.id}/generate-image`, { method: "POST" });
+          await loadPlans(limit);
+        } catch (err) {
+          statusText.textContent = `Image error: ${err.message}`;
+          btn.disabled = false;
+          btn.textContent = "Generate Image";
+        }
+      });
+    }
   });
 }
 

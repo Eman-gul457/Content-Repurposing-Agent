@@ -21,6 +21,7 @@ from backend.db_models import (
     SocialAccount,
 )
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
+from backend.image_service import generate_plan_image
 from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
 from backend.planning_service import create_content_plans
 from backend.research_service import collect_research_items
@@ -354,6 +355,25 @@ def get_content_plans(
         q = q.filter(ContentPlan.run_id == run_id)
     rows = q.order_by(ContentPlan.created_at.desc()).limit(limit).all()
     return [_serialize_plan(r) for r in rows]
+
+
+@app.post("/api/content-plans/{plan_id}/generate-image", response_model=ContentPlanResponse)
+def generate_content_plan_image(
+    plan_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> ContentPlanResponse:
+    plan = db.query(ContentPlan).filter(ContentPlan.id == plan_id, ContentPlan.user_id == user_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Content plan not found")
+
+    run = db.query(AgentRun).filter(AgentRun.id == plan.run_id, AgentRun.user_id == user_id).first()
+    business_name = run.business_name if run else ""
+    try:
+        updated = generate_plan_image(db=db, user_id=user_id, plan_id=plan_id, business_name=business_name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {exc}") from exc
+    return _serialize_plan(updated)
 
 
 @app.patch("/api/posts/{post_id}", response_model=DraftPost)
