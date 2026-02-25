@@ -374,8 +374,15 @@ def generate_content_plan_image(
 
     run = db.query(AgentRun).filter(AgentRun.id == plan.run_id, AgentRun.user_id == user_id).first()
     business_name = run.business_name if run else ""
+    source_text = run.source_content if run else ""
     try:
-        updated = generate_plan_image(db=db, user_id=user_id, plan_id=plan_id, business_name=business_name)
+        updated = generate_plan_image(
+            db=db,
+            user_id=user_id,
+            plan_id=plan_id,
+            business_name=business_name,
+            source_text=source_text,
+        )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Image generation failed: {exc}") from exc
     return _serialize_plan(updated)

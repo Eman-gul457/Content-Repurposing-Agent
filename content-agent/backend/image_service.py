@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import hashlib
 import random
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
@@ -80,6 +81,18 @@ STYLE_PRESETS = [
     },
 ]
 LAYOUT_VARIANTS = ("classic", "split", "spotlight")
+NEGATIVE_HINTS = {"constraint", "problem", "weak", "linear", "hunting", "slow", "bottleneck"}
+POSITIVE_HINTS = {
+    "approved",
+    "outcome",
+    "automation",
+    "pipeline",
+    "system",
+    "engine",
+    "scale",
+    "throughput",
+    "efficiency",
+}
 
 
 def _supabase_headers(content_type: str | None = None) -> dict[str, str]:
@@ -149,8 +162,7 @@ def _pick_dimensions(platform: str) -> tuple[int, int]:
 
 
 def _pick_style(seed: str) -> dict[str, str]:
-    token = f"{seed}:{random.randint(1, 999999)}"
-    h = int(hashlib.sha256(token.encode("utf-8")).hexdigest(), 16)
+    h = int(hashlib.sha256(seed.encode("utf-8")).hexdigest(), 16)
     return STYLE_PRESETS[h % len(STYLE_PRESETS)]
 
 
@@ -194,6 +206,256 @@ def _svg_text_block(lines: list[str], x: int, y: int, step: int, size: int, colo
             f'font-weight="{weight}" font-size="{size}" fill="{color}">{line_escaped}</text>'
         )
     return "\n  ".join(parts)
+
+
+def _sanitize_visual_line(line: str) -> str:
+    text = (line or "").strip()
+    if not text:
+        return ""
+    text = re.sub(r"https?://\S+", "", text)
+    text = re.sub(r"hashtag#\w+", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"#\w+", "", text)
+    text = re.sub(r"\s+", " ", text).strip(" -:,.")
+    return text.strip()
+
+
+def _extract_visual_points(text: str, max_points: int = 8) -> list[str]:
+    if not text.strip():
+        return []
+    raw_lines = [x.strip() for x in text.splitlines() if x.strip()]
+    candidates: list[str] = []
+    for ln in raw_lines:
+        cleaned = _sanitize_visual_line(ln)
+        if len(cleaned) >= 12:
+            candidates.append(cleaned)
+
+    if len(candidates) < max_points:
+        split_lines: list[str] = []
+        for block in raw_lines:
+            split_lines.extend(re.split(r"[.!?;]\s+", block))
+        for part in split_lines:
+            cleaned = _sanitize_visual_line(part)
+            if len(cleaned) >= 16:
+                candidates.append(cleaned)
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        key = item.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(item[:120])
+        if len(unique) >= max_points:
+            break
+    return unique
+
+
+def _split_points_for_columns(points: list[str]) -> tuple[list[str], list[str]]:
+    if not points:
+        return [], []
+
+    left: list[str] = []
+    right: list[str] = []
+    for point in points:
+        low = point.casefold()
+        neg = any(k in low for k in NEGATIVE_HINTS)
+        pos = any(k in low for k in POSITIVE_HINTS)
+        if neg and not pos:
+            left.append(point)
+        elif pos and not neg:
+            right.append(point)
+        elif len(left) <= len(right):
+            left.append(point)
+        else:
+            right.append(point)
+
+    if not left or not right:
+        half = max(1, len(points) // 2)
+        left = points[:half]
+        right = points[half:]
+    return left[:5], right[:5]
+
+
+def _pick_headline(theme: str, points: list[str], platform: str) -> str:
+    theme_clean = _sanitize_visual_line(theme)
+    if theme_clean and len(theme_clean) >= 8:
+        return theme_clean[:92]
+    for p in points:
+        if 18 <= len(p) <= 92:
+            return p
+    return f"{platform.upper()} strategy breakdown"
+
+
+def _pick_core_message(angle: str, points: list[str]) -> str:
+    angle_clean = _sanitize_visual_line(angle)
+    if angle_clean and len(angle_clean) >= 10:
+        return angle_clean[:90]
+    for p in points:
+        low = p.casefold()
+        if "throughput" in low or "scale" in low or "outcome" in low:
+            return p[:90]
+    return "Software is not the product. Throughput is."
+
+
+def _svg_bullet_list(
+    points: list[str],
+    *,
+    x: int,
+    y: int,
+    width: int,
+    max_lines: int,
+    line_height: int,
+    font_size: int,
+    color: str,
+) -> str:
+    rows: list[str] = []
+    cursor = y
+    for point in points[:max_lines]:
+        wrapped = _wrap_text(point, max_len=34, max_lines=2)
+        if not wrapped:
+            continue
+        rows.append(
+            f'<rect x="{x}" y="{cursor - int(line_height * 0.8)}" width="{width}" '
+            f'height="{int(line_height * (1.35 if len(wrapped) == 1 else 2.1))}" rx="10" '
+            f'fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.07)"/>'
+        )
+        rows.append(
+            f'<circle cx="{x + 14}" cy="{cursor - 4}" r="4" fill="{color}" />'
+        )
+        text_lines = _svg_text_block(
+            wrapped,
+            x + 28,
+            cursor,
+            int(line_height * 0.9),
+            font_size,
+            "#e6edf8",
+            550,
+        )
+        rows.append(text_lines)
+        cursor += int(line_height * (1.75 if len(wrapped) == 1 else 2.45))
+    return "\n  ".join(rows)
+
+
+def _build_infographic_svg(
+    platform: str,
+    theme: str,
+    angle: str,
+    source_text: str,
+    business_name: str,
+    width: int,
+    height: int,
+    style: dict[str, str],
+    layout: str,
+) -> bytes:
+    points = _extract_visual_points(source_text, max_points=10)
+    headline = _pick_headline(theme, points, platform)
+    core_message = _pick_core_message(angle, points)
+    brand = html.escape((business_name or "Your Brand")[:50])
+
+    left_points, right_points = _split_points_for_columns(points or [theme, angle])
+    left_title = "Current Pattern"
+    right_title = "Execution Model"
+
+    title_lines = _wrap_text(headline, max_len=36 if width >= height else 28, max_lines=2)
+    core_lines = _wrap_text(core_message, max_len=40 if width >= height else 30, max_lines=2)
+    title_size = max(42, int(height * (0.056 if width >= height else 0.05)))
+    core_size = max(23, int(height * 0.03))
+
+    if width >= height:
+        col_top = int(height * 0.28)
+        col_h = int(height * 0.58)
+        col_w = int(width * 0.39)
+        left_x = int(width * 0.06)
+        right_x = int(width * 0.55)
+        divider_y = int(height * 0.49)
+        list_left = _svg_bullet_list(
+            left_points,
+            x=left_x + 14,
+            y=col_top + 72,
+            width=col_w - 28,
+            max_lines=4,
+            line_height=34,
+            font_size=20,
+            color="#f59e0b",
+        )
+        list_right = _svg_bullet_list(
+            right_points,
+            x=right_x + 14,
+            y=col_top + 72,
+            width=col_w - 28,
+            max_lines=4,
+            line_height=34,
+            font_size=20,
+            color="#22d3ee",
+        )
+        panel = f"""
+  <rect x="{left_x}" y="{col_top}" width="{col_w}" height="{col_h}" rx="16" fill="rgba(5,9,22,0.55)" stroke="rgba(245,158,11,0.35)"/>
+  <rect x="{right_x}" y="{col_top}" width="{col_w}" height="{col_h}" rx="16" fill="rgba(5,9,22,0.55)" stroke="rgba(34,211,238,0.35)"/>
+  <text x="{left_x + 16}" y="{col_top + 38}" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="22" fill="#fbbf24">{left_title}</text>
+  <text x="{right_x + 16}" y="{col_top + 38}" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="22" fill="#67e8f9">{right_title}</text>
+  {list_left}
+  {list_right}
+  <line x1="{int(width * 0.47)}" y1="{divider_y}" x2="{int(width * 0.53)}" y2="{divider_y}" stroke="#fcd34d" stroke-width="3"/>
+  <polygon points="{int(width * 0.53)},{divider_y} {int(width * 0.522)},{divider_y - 8} {int(width * 0.522)},{divider_y + 8}" fill="#fcd34d"/>
+"""
+    else:
+        col_top = int(height * 0.33)
+        row_h = int(height * 0.25)
+        left_x = int(width * 0.06)
+        col_w = int(width * 0.88)
+        right_y = col_top + row_h + 18
+        list_left = _svg_bullet_list(
+            left_points,
+            x=left_x + 14,
+            y=col_top + 64,
+            width=col_w - 28,
+            max_lines=3,
+            line_height=30,
+            font_size=17,
+            color="#f59e0b",
+        )
+        list_right = _svg_bullet_list(
+            right_points,
+            x=left_x + 14,
+            y=right_y + 64,
+            width=col_w - 28,
+            max_lines=3,
+            line_height=30,
+            font_size=17,
+            color="#22d3ee",
+        )
+        panel = f"""
+  <rect x="{left_x}" y="{col_top}" width="{col_w}" height="{row_h}" rx="14" fill="rgba(5,9,22,0.55)" stroke="rgba(245,158,11,0.35)"/>
+  <rect x="{left_x}" y="{right_y}" width="{col_w}" height="{row_h}" rx="14" fill="rgba(5,9,22,0.55)" stroke="rgba(34,211,238,0.35)"/>
+  <text x="{left_x + 14}" y="{col_top + 34}" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="18" fill="#fbbf24">{left_title}</text>
+  <text x="{left_x + 14}" y="{right_y + 34}" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="18" fill="#67e8f9">{right_title}</text>
+  {list_left}
+  {list_right}
+"""
+
+    footer_y = int(height * 0.93)
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="{style["bg_1"]}"/>
+      <stop offset="100%" stop-color="{style["bg_2"]}"/>
+    </linearGradient>
+    <linearGradient id="topline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="{width}" height="{height}" fill="url(#bg)"/>
+  <rect x="{int(width * 0.04)}" y="{int(height * 0.04)}" width="{int(width * 0.92)}" height="{int(height * 0.92)}" rx="{int(height * 0.03)}" fill="rgba(2,6,23,0.35)" stroke="rgba(255,255,255,0.08)"/>
+  <rect x="{int(width * 0.08)}" y="{int(height * 0.13)}" width="{int(width * 0.84)}" height="4" rx="2" fill="url(#topline)"/>
+  {_svg_text_block(title_lines, int(width * 0.08), int(height * 0.1), int(title_size * 1.1), title_size, "#f8fafc", 820)}
+  {_svg_text_block(core_lines, int(width * 0.08), int(height * 0.22), int(core_size * 1.3), core_size, "#cbd5e1", 600)}
+  {panel}
+  <text x="{int(width * 0.08)}" y="{footer_y}" font-family="Inter, Arial, sans-serif" font-weight="700" font-size="{max(20, int(height * 0.032))}" fill="#f8fafc">{brand}</text>
+  <text x="{int(width * 0.08)}" y="{footer_y + max(20, int(height * 0.03))}" font-family="Inter, Arial, sans-serif" font-size="{max(14, int(height * 0.022))}" fill="#9db0cf">Execution architecture for validated demand</text>
+</svg>"""
+    return svg.encode("utf-8")
 
 
 def _fallback_post_svg(
@@ -302,23 +564,41 @@ def _mime_to_ext(mime_type: str) -> str:
     }.get(mime_type, "bin")
 
 
-def generate_plan_image(db: Session, user_id: str, plan_id: int, business_name: str = "") -> ContentPlan:
+def generate_plan_image(
+    db: Session,
+    user_id: str,
+    plan_id: int,
+    business_name: str = "",
+    source_text: str = "",
+) -> ContentPlan:
     plan = db.query(ContentPlan).filter(ContentPlan.id == plan_id, ContentPlan.user_id == user_id).first()
     if not plan:
         raise RuntimeError("Plan not found")
 
     prompt = (plan.image_prompt or f"Social media creative for {plan.platform} {plan.theme}").strip()
     width, height = _pick_dimensions(plan.platform)
-    image_bytes = b""
-    mime_type = ""
-
-    pol = _download_pollinations(prompt, width, height)
-    if pol:
-        image_bytes, mime_type = pol
-    else:
-        seed = f"{plan.id}:{plan.platform}:{plan.theme}:{datetime.utcnow().timestamp()}"
-        style = _pick_style(seed)
-        layout = _pick_layout(seed)
+    seed = f"{plan.id}:{plan.platform}:{plan.theme}:{plan.post_angle}"
+    style = _pick_style(seed)
+    layout = _pick_layout(seed)
+    visual_source = "\n".join(
+        x.strip()
+        for x in [source_text, plan.theme, plan.post_angle, prompt]
+        if (x or "").strip()
+    )
+    try:
+        image_bytes = _build_infographic_svg(
+            plan.platform,
+            plan.theme,
+            plan.post_angle,
+            visual_source,
+            business_name,
+            width,
+            height,
+            style,
+            layout,
+        )
+        mime_type = "image/svg+xml"
+    except Exception:
         image_bytes = _fallback_post_svg(
             plan.platform,
             plan.theme,
