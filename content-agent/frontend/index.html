@@ -15,21 +15,19 @@
       <div class="logo-mark">AI</div>
       <div class="logo-text">AI Agent</div>
     </div>
-    <nav id="tabNav" class="tab-nav" hidden>
-      <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
-      <button class="tab-btn" data-tab="drafts" type="button">Drafts</button>
-      <button class="tab-btn" data-tab="history" type="button">History</button>
-      <button class="tab-btn" data-tab="schedules" type="button">Schedules</button>
-      <button class="tab-btn" data-tab="research" type="button">Research</button>
-      <button class="tab-btn" data-tab="profile" type="button">Profile</button>
-    </nav>
     <div class="topbar-right">
-      <button id="googleLoginBtn" class="ghost">Google</button>
-      <button id="githubLoginBtn" class="ghost">GitHub</button>
-      <button id="emailLoginTopBtn" class="ghost">Email Link</button>
-      <button id="connectAccountsBtn" class="ghost" hidden>Connect Accounts</button>
-      <button id="topRunBtn" class="cta" hidden>Run Agent</button>
-      <button id="logoutBtn" class="ghost" hidden>Logout</button>
+      <button id="sidebarToggle" class="icon-btn ghost" type="button" hidden aria-label="Toggle sidebar">
+        <i data-lucide="menu"></i>
+      </button>
+      <button id="googleLoginBtn" class="ghost" type="button">Google</button>
+      <button id="githubLoginBtn" class="ghost" type="button">GitHub</button>
+      <button id="emailLoginTopBtn" class="ghost" type="button">Email Link</button>
+      <button id="connectAccountsBtn" class="secondary" type="button" hidden>Connect Accounts</button>
+      <button id="topRunBtn" class="cta" type="button" hidden>Run Agent</button>
+      <button id="topSettingsBtn" class="icon-btn ghost" type="button" hidden aria-label="Settings">
+        <i data-lucide="settings"></i>
+      </button>
+      <button id="logoutBtn" class="ghost" type="button" hidden>Logout</button>
       <div id="userChip" class="user-chip" hidden>
         <span id="userInitial">U</span>
       </div>
@@ -45,212 +43,255 @@
           <button id="profileDashboardBtn" class="ghost profile-action" type="button">Open Dashboard</button>
           <button id="profileDraftsBtn" class="ghost profile-action" type="button">Open Drafts</button>
           <button id="profileProfileBtn" class="ghost profile-action" type="button">Open Profile</button>
+          <button id="profileSettingsBtn" class="ghost profile-action" type="button">Open Settings</button>
           <button id="profileLogoutBtn" class="warn profile-action" type="button">Logout</button>
         </div>
       </div>
     </div>
   </header>
 
-  <main class="container">
-    <div id="authState" class="auth-banner">Not logged in</div>
+  <div class="app-shell">
+    <aside id="appSidebar" class="sidebar" hidden>
+      <nav id="tabNav" class="tab-nav" hidden>
+        <button class="tab-btn active" data-tab="dashboard" type="button"><i data-lucide="layout-dashboard"></i>Dashboard</button>
+        <button class="tab-btn" data-tab="drafts" type="button"><i data-lucide="file-pen-line"></i>Drafts</button>
+        <button class="tab-btn" data-tab="schedules" type="button"><i data-lucide="calendar-clock"></i>Schedules</button>
+        <button class="tab-btn" data-tab="history" type="button"><i data-lucide="history"></i>History</button>
+        <button class="tab-btn" data-tab="research" type="button"><i data-lucide="search"></i>Research</button>
+        <button class="tab-btn" data-tab="profile" type="button"><i data-lucide="user-round"></i>Profile</button>
+        <button class="tab-btn" data-tab="settings" type="button"><i data-lucide="settings-2"></i>Settings</button>
+      </nav>
+    </aside>
 
-    <section id="publicLanding" class="public-landing card fade-in">
-      <div class="landing-minimal">
-        <p class="landing-kicker">AI Content SaaS</p>
-        <h1>Create and publish content faster.</h1>
-        <p class="landing-sub">One dashboard for research, drafting, approval, and scheduling.</p>
-        <div class="landing-actions">
-          <button id="landingGoogleBtn" class="cta" type="button">Google</button>
-          <button id="landingGithubBtn" class="ghost" type="button">GitHub</button>
-        </div>
-        <div class="landing-email-row">
-          <input id="emailLoginInput" type="text" placeholder="Email for magic link" />
-          <button id="emailLoginBtn" class="secondary" type="button">Email Link</button>
-        </div>
-        <div class="landing-value-grid">
-          <article class="landing-value-card">
-            <h3>Faster Content Ops</h3>
-            <p>Research, draft, approve, and publish from one workflow.</p>
-          </article>
-          <article class="landing-value-card">
-            <h3>Approval First</h3>
-            <p>Posts stay in draft until you explicitly approve them.</p>
-          </article>
-          <article class="landing-value-card">
-            <h3>Built for Teams</h3>
-            <p>Clean system for agencies, creators, and in-house marketing.</p>
-          </article>
-        </div>
-      </div>
-    </section>
+    <main class="container">
+      <div id="authState" class="auth-banner">Not logged in</div>
 
-    <section id="page-dashboard" class="page-view">
-      <header class="hero card fade-in">
-        <div class="hero-glow"></div>
-        <h1>AI Content Command Center</h1>
-        <p>Research, create, approve, schedule, and publish from one professional workflow.</p>
-      </header>
+      <section id="publicLanding" class="public-landing" aria-label="Login">
+        <div class="login-card">
+          <div class="login-head">
+            <div class="logo-mark large">AI</div>
+            <div>
+              <h1>Login</h1>
+              <p class="muted">Sign in to manage content generation, approval, and publishing.</p>
+            </div>
+          </div>
+          <div class="landing-actions">
+            <button id="landingGoogleBtn" class="cta" type="button">Continue with Google</button>
+            <button id="landingGithubBtn" class="ghost" type="button">Continue with GitHub</button>
+          </div>
+          <div class="landing-email-row">
+            <input id="emailLoginInput" type="text" placeholder="Email for magic link" />
+            <button id="emailLoginBtn" class="secondary" type="button">Send Magic Link</button>
+          </div>
+          <div class="landing-value-grid">
+            <article class="landing-value-card">
+              <h3>One workflow</h3>
+              <p>Research, draft, approve, schedule, and publish in one place.</p>
+            </article>
+            <article class="landing-value-card">
+              <h3>Approval control</h3>
+              <p>Nothing gets posted unless your team approves it first.</p>
+            </article>
+            <article class="landing-value-card">
+              <h3>Built for teams</h3>
+              <p>Designed for agencies, creators, and in-house marketing teams.</p>
+            </article>
+          </div>
+        </div>
+      </section>
 
-      <div class="dashboard-grid">
-        <section class="card fade-in-up" id="socialSection" hidden>
-          <h2 class="section-title"><i data-lucide="link-2"></i> Social Connections</h2>
-          <div class="social-item">
-            <div class="social-label-wrap">
-              <strong>LinkedIn</strong>
-              <span id="linkedinStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+      <section id="page-dashboard" class="page-view">
+        <header class="hero card fade-in">
+          <h1>AI Content Command Center</h1>
+          <p>Research, create, approve, schedule, and publish from one professional workflow.</p>
+        </header>
+
+        <div class="dashboard-grid">
+          <section class="card fade-in-up" id="socialSection" hidden>
+            <h2 class="section-title"><i data-lucide="link-2"></i> Social Connections</h2>
+            <div class="social-item">
+              <div class="social-label-wrap">
+                <strong>LinkedIn</strong>
+                <span id="linkedinStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+              </div>
+              <button id="connectLinkedInBtn" class="secondary" type="button">Connect LinkedIn</button>
             </div>
-            <button id="connectLinkedInBtn" class="secondary" type="button">Connect LinkedIn</button>
-          </div>
-          <div class="social-item">
-            <div class="social-label-wrap">
-              <strong>Twitter/X</strong>
-              <span id="twitterStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+            <div class="social-item">
+              <div class="social-label-wrap">
+                <strong>Twitter/X</strong>
+                <span id="twitterStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+              </div>
+              <button id="connectTwitterBtn" class="secondary" type="button">Connect Twitter</button>
             </div>
-            <button id="connectTwitterBtn" class="secondary" type="button">Connect Twitter</button>
-          </div>
-          <div class="social-item">
-            <div class="social-label-wrap">
-              <strong>Facebook</strong>
-              <span id="facebookStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+            <div class="social-item">
+              <div class="social-label-wrap">
+                <strong>Facebook</strong>
+                <span id="facebookStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+              </div>
+              <button id="connectFacebookBtn" class="ghost" disabled type="button">Connect Facebook</button>
             </div>
-            <button id="connectFacebookBtn" class="ghost" disabled type="button">Connect Facebook</button>
-          </div>
-          <div class="social-item">
-            <div class="social-label-wrap">
-              <strong>Instagram</strong>
-              <span id="instagramStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+            <div class="social-item">
+              <div class="social-label-wrap">
+                <strong>Instagram</strong>
+                <span id="instagramStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
+              </div>
+              <button id="connectInstagramBtn" class="ghost" disabled type="button">Connect Instagram</button>
             </div>
-            <button id="connectInstagramBtn" class="ghost" disabled type="button">Connect Instagram</button>
-          </div>
-          <p class="muted">Twitter is available in free manual mode. Facebook/Instagram are ready for credentials later.</p>
+            <p class="muted">Twitter is available in free manual mode. Facebook/Instagram are ready for credentials later.</p>
+          </section>
+
+          <section class="card fade-in-up" id="generatorSection" hidden>
+            <h2 class="section-title"><i data-lucide="brain"></i> Run AI Agent</h2>
+            <div class="profile-grid">
+              <input id="businessNameInput" type="text" placeholder="Business name" />
+              <input id="nicheInput" type="text" placeholder="Niche (e.g. solar energy, healthcare SaaS)" />
+              <input id="audienceInput" type="text" placeholder="Audience (e.g. founders, doctors, students)" />
+              <input id="toneInput" type="text" placeholder="Tone (e.g. professional, bold, friendly)" />
+              <input id="regionInput" type="text" placeholder="Region (e.g. Pakistan, GCC, Global)" />
+              <select id="languagePrefInput">
+                <option value="english_urdu" selected>English + Urdu</option>
+                <option value="english">English</option>
+                <option value="urdu">Urdu</option>
+              </select>
+            </div>
+            <div class="platform-row">
+              <label><input type="checkbox" name="platform" value="linkedin" checked /> LinkedIn</label>
+              <label><input type="checkbox" name="platform" value="twitter" checked /> Twitter/X</label>
+              <label><input type="checkbox" name="platform" value="facebook" checked /> Facebook</label>
+              <label><input type="checkbox" name="platform" value="instagram" checked /> Instagram</label>
+              <label><input type="checkbox" name="platform" value="blog_summary" checked /> Blog Summary</label>
+            </div>
+            <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
+            <div class="row">
+              <button id="generateBtn" class="cta" type="button">Run AI Agent</button>
+              <span id="statusText"></span>
+            </div>
+          </section>
+        </div>
+        <section class="card fade-in-up" id="recentPlansSection" hidden>
+          <h2 class="section-title"><i data-lucide="sparkles"></i> Recent Plans</h2>
+          <div id="recentPlansList"></div>
         </section>
+      </section>
 
-        <section class="card fade-in-up" id="generatorSection" hidden>
-          <h2 class="section-title"><i data-lucide="brain"></i> Run AI Agent</h2>
-          <div class="profile-grid">
-            <input id="businessNameInput" type="text" placeholder="Business name" />
-            <input id="nicheInput" type="text" placeholder="Niche (e.g. solar energy, healthcare SaaS)" />
-            <input id="audienceInput" type="text" placeholder="Audience (e.g. founders, doctors, students)" />
-            <input id="toneInput" type="text" placeholder="Tone (e.g. professional, bold, friendly)" />
-            <input id="regionInput" type="text" placeholder="Region (e.g. Pakistan, GCC, Global)" />
-            <select id="languagePrefInput">
-              <option value="english_urdu" selected>English + Urdu</option>
-              <option value="english">English</option>
-              <option value="urdu">Urdu</option>
+      <section id="page-drafts" class="page-view" hidden>
+        <section class="card fade-in-up" id="draftsSection" hidden>
+          <h2 class="section-title"><i data-lucide="file-text"></i> Drafts</h2>
+          <p class="muted">Generated posts waiting for approval and publishing.</p>
+          <div id="draftsList"></div>
+        </section>
+      </section>
+
+      <section id="page-history" class="page-view" hidden>
+        <section class="card fade-in-up" id="historySection" hidden>
+          <h2 class="section-title"><i data-lucide="history"></i> History</h2>
+          <div class="row filters-row">
+            <select id="historyPlatformFilter">
+              <option value="all">All Platforms</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="twitter">Twitter/X</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+              <option value="blog_summary">Blog Summary</option>
             </select>
+            <select id="historyStatusFilter">
+              <option value="all">All Statuses</option>
+              <option value="posted">Published</option>
+              <option value="failed">Failed</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="draft">Draft</option>
+            </select>
+            <input id="historyDateFilter" type="date" />
+            <button id="refreshHistoryBtn" class="ghost" type="button">Refresh</button>
           </div>
-          <div class="platform-row">
-            <label><input type="checkbox" name="platform" value="linkedin" checked /> LinkedIn</label>
-            <label><input type="checkbox" name="platform" value="twitter" checked /> Twitter/X</label>
-            <label><input type="checkbox" name="platform" value="facebook" checked /> Facebook</label>
-            <label><input type="checkbox" name="platform" value="instagram" checked /> Instagram</label>
-            <label><input type="checkbox" name="platform" value="blog_summary" checked /> Blog Summary</label>
-          </div>
-          <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
-          <div class="row">
-            <button id="generateBtn" class="cta" type="button">Run AI Agent</button>
-            <span id="statusText"></span>
-          </div>
+          <div id="historyList"></div>
         </section>
-      </div>
-      <section class="card fade-in-up" id="recentPlansSection" hidden>
-        <h2 class="section-title"><i data-lucide="sparkles"></i> Recent Plans</h2>
-        <div id="recentPlansList"></div>
       </section>
-    </section>
 
-    <section id="page-drafts" class="page-view" hidden>
-      <section class="card fade-in-up" id="draftsSection" hidden>
-        <h2 class="section-title"><i data-lucide="file-text"></i> Drafts</h2>
-        <p class="muted">Generated posts waiting for approval and publishing.</p>
-        <div id="draftsList"></div>
+      <section id="page-schedules" class="page-view" hidden>
+        <section class="card fade-in-up" id="schedulesSection" hidden>
+          <h2 class="section-title"><i data-lucide="calendar-clock"></i> Scheduled Posts</h2>
+          <div id="schedulesList"></div>
+        </section>
+        <section class="card fade-in-up" id="plansSection" hidden>
+          <h2 class="section-title"><i data-lucide="calendar-days"></i> Content Plans</h2>
+          <div id="plansList"></div>
+        </section>
       </section>
-    </section>
 
-    <section id="page-history" class="page-view" hidden>
-      <section class="card fade-in-up" id="historySection" hidden>
-        <h2 class="section-title"><i data-lucide="history"></i> History</h2>
-        <div class="row filters-row">
-          <select id="historyPlatformFilter">
-            <option value="all">All Platforms</option>
-            <option value="linkedin">LinkedIn</option>
-            <option value="twitter">Twitter/X</option>
-            <option value="facebook">Facebook</option>
-            <option value="instagram">Instagram</option>
-            <option value="blog_summary">Blog Summary</option>
-          </select>
-          <input id="historyDateFilter" type="date" />
-          <button id="refreshHistoryBtn" class="ghost" type="button">Refresh</button>
-        </div>
-        <div id="historyList"></div>
+      <section id="page-research" class="page-view" hidden>
+        <section class="card fade-in-up" id="researchSection" hidden>
+          <h2 class="section-title"><i data-lucide="search"></i> Research (Daily max: 5)</h2>
+          <div id="researchList"></div>
+        </section>
       </section>
-    </section>
 
-    <section id="page-schedules" class="page-view" hidden>
-      <section class="card fade-in-up" id="schedulesSection" hidden>
-        <h2 class="section-title"><i data-lucide="calendar-clock"></i> Scheduled Posts</h2>
-        <div id="schedulesList"></div>
-      </section>
-      <section class="card fade-in-up" id="plansSection" hidden>
-        <h2 class="section-title"><i data-lucide="calendar-days"></i> Content Plans</h2>
-        <div id="plansList"></div>
-      </section>
-    </section>
-
-    <section id="page-research" class="page-view" hidden>
-      <section class="card fade-in-up" id="researchSection" hidden>
-        <h2 class="section-title"><i data-lucide="search"></i> Research (Daily max: 5)</h2>
-        <div id="researchList"></div>
-      </section>
-    </section>
-
-    <section id="page-profile" class="page-view" hidden>
-      <section class="profile-hero card fade-in-up" id="profileSection" hidden>
-        <div class="profile-cover"></div>
-        <div class="profile-main">
-          <div id="profileBigInitial" class="profile-big-avatar">U</div>
-          <div class="profile-main-text">
-            <h2 id="profileDisplayName">Your Profile</h2>
-            <p id="profileDisplayEmail" class="muted">Not logged in</p>
-            <div class="profile-badges">
-              <span class="profile-badge">AI Agent User</span>
-              <span class="profile-badge">Timezone: Asia/Karachi</span>
+      <section id="page-profile" class="page-view" hidden>
+        <section class="profile-hero card fade-in-up" id="profileSection" hidden>
+          <div class="profile-cover"></div>
+          <div class="profile-main">
+            <div id="profileBigInitial" class="profile-big-avatar">U</div>
+            <div class="profile-main-text">
+              <h2 id="profileDisplayName">Your Profile</h2>
+              <p id="profileDisplayEmail" class="muted">Not logged in</p>
+              <div class="profile-badges">
+                <span class="profile-badge">AI Agent User</span>
+                <span class="profile-badge">Timezone: Asia/Karachi</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <section class="card fade-in-up" id="profileDetailsSection" hidden>
+          <h2 class="section-title"><i data-lucide="user-round"></i> Public Profile</h2>
+          <div class="profile-form-grid">
+            <input id="profileFullNameInput" type="text" placeholder="Full name" />
+            <input id="profileCompanyInput" type="text" placeholder="Company / Business name" />
+            <input id="profileRoleInput" type="text" placeholder="Role (e.g. Founder, Marketer)" />
+            <input id="profileLocationInput" type="text" placeholder="Location (e.g. Karachi, Pakistan)" />
+            <input id="profileWebsiteInput" type="text" placeholder="Website URL" />
+            <input id="profileTimezoneInput" type="text" placeholder="Timezone" value="Asia/Karachi" />
+          </div>
+          <textarea id="profileBioInput" placeholder="About you"></textarea>
+          <div class="row">
+            <button id="saveProfileBtn" class="cta" type="button">Save Profile</button>
+            <span id="profileStatusText" class="muted"></span>
+          </div>
+        </section>
+
+        <section class="card fade-in-up" id="securitySection" hidden>
+          <h2 class="section-title"><i data-lucide="shield-check"></i> Security</h2>
+          <div class="security-grid">
+            <input id="newPasswordInput" type="password" placeholder="New password (min 8 characters)" />
+            <input id="confirmPasswordInput" type="password" placeholder="Confirm new password" />
+          </div>
+          <div class="row">
+            <button id="changePasswordBtn" class="secondary" type="button">Change Password</button>
+            <button id="sendResetEmailBtn" class="ghost" type="button">Send Reset Email</button>
+            <span id="securityStatusText" class="muted"></span>
+          </div>
+        </section>
       </section>
 
-      <section class="card fade-in-up" id="profileDetailsSection" hidden>
-        <h2 class="section-title"><i data-lucide="user-round"></i> Public Profile</h2>
-        <div class="profile-form-grid">
-          <input id="profileFullNameInput" type="text" placeholder="Full name" />
-          <input id="profileCompanyInput" type="text" placeholder="Company / Business name" />
-          <input id="profileRoleInput" type="text" placeholder="Role (e.g. Founder, Marketer)" />
-          <input id="profileLocationInput" type="text" placeholder="Location (e.g. Karachi, Pakistan)" />
-          <input id="profileWebsiteInput" type="text" placeholder="Website URL" />
-          <input id="profileTimezoneInput" type="text" placeholder="Timezone" value="Asia/Karachi" />
-        </div>
-        <textarea id="profileBioInput" placeholder="About you"></textarea>
-        <div class="row">
-          <button id="saveProfileBtn" class="cta" type="button">Save Profile</button>
-          <span id="profileStatusText" class="muted"></span>
-        </div>
+      <section id="page-settings" class="page-view" hidden>
+        <section class="card fade-in-up" id="settingsSection" hidden>
+          <h2 class="section-title"><i data-lucide="settings"></i> Settings</h2>
+          <div class="settings-grid">
+            <div class="settings-item">
+              <label>Theme</label>
+              <input type="text" value="Light Professional" disabled />
+              <small class="muted">Standard interface for clean SaaS workflows.</small>
+            </div>
+            <div class="settings-item">
+              <label>Default Timezone</label>
+              <input id="settingsTimezoneMirror" type="text" value="Asia/Karachi" disabled />
+              <small class="muted">Change timezone from the Profile page.</small>
+            </div>
+          </div>
+        </section>
       </section>
-
-      <section class="card fade-in-up" id="securitySection" hidden>
-        <h2 class="section-title"><i data-lucide="shield-check"></i> Security</h2>
-        <div class="security-grid">
-          <input id="newPasswordInput" type="password" placeholder="New password (min 8 characters)" />
-          <input id="confirmPasswordInput" type="password" placeholder="Confirm new password" />
-        </div>
-        <div class="row">
-          <button id="changePasswordBtn" class="secondary" type="button">Change Password</button>
-          <button id="sendResetEmailBtn" class="ghost" type="button">Send Reset Email</button>
-          <span id="securityStatusText" class="muted"></span>
-        </div>
-      </section>
-    </section>
-  </main>
+    </main>
+  </div>
 
   <script src="script.js"></script>
 </body>

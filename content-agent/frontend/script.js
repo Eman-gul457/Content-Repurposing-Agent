@@ -12,6 +12,8 @@ const connectAccountsBtn = document.getElementById("connectAccountsBtn");
 const topRunBtn = document.getElementById("topRunBtn");
 const authState = document.getElementById("authState");
 const tabNav = document.getElementById("tabNav");
+const appSidebar = document.getElementById("appSidebar");
+const sidebarToggle = document.getElementById("sidebarToggle");
 const userChip = document.getElementById("userChip");
 const userInitial = document.getElementById("userInitial");
 const profileMenu = document.getElementById("profileMenu");
@@ -21,7 +23,9 @@ const profileMenuUserId = document.getElementById("profileMenuUserId");
 const profileDashboardBtn = document.getElementById("profileDashboardBtn");
 const profileDraftsBtn = document.getElementById("profileDraftsBtn");
 const profileProfileBtn = document.getElementById("profileProfileBtn");
+const profileSettingsBtn = document.getElementById("profileSettingsBtn");
 const profileLogoutBtn = document.getElementById("profileLogoutBtn");
+const topSettingsBtn = document.getElementById("topSettingsBtn");
 
 const socialSection = document.getElementById("socialSection");
 const generatorSection = document.getElementById("generatorSection");
@@ -34,6 +38,7 @@ const schedulesSection = document.getElementById("schedulesSection");
 const profileSection = document.getElementById("profileSection");
 const profileDetailsSection = document.getElementById("profileDetailsSection");
 const securitySection = document.getElementById("securitySection");
+const settingsSection = document.getElementById("settingsSection");
 const publicLanding = document.getElementById("publicLanding");
 
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
@@ -44,6 +49,7 @@ const pageViews = {
   schedules: document.getElementById("page-schedules"),
   research: document.getElementById("page-research"),
   profile: document.getElementById("page-profile"),
+  settings: document.getElementById("page-settings"),
 };
 
 const contentInput = document.getElementById("contentInput");
@@ -69,6 +75,7 @@ const schedulesList = document.getElementById("schedulesList");
 
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 const historyPlatformFilter = document.getElementById("historyPlatformFilter");
+const historyStatusFilter = document.getElementById("historyStatusFilter");
 const historyDateFilter = document.getElementById("historyDateFilter");
 
 const linkedinStatus = document.getElementById("linkedinStatus");
@@ -87,6 +94,7 @@ const profileLocationInput = document.getElementById("profileLocationInput");
 const profileWebsiteInput = document.getElementById("profileWebsiteInput");
 const profileTimezoneInput = document.getElementById("profileTimezoneInput");
 const profileBioInput = document.getElementById("profileBioInput");
+const settingsTimezoneMirror = document.getElementById("settingsTimezoneMirror");
 const saveProfileBtn = document.getElementById("saveProfileBtn");
 const profileStatusText = document.getElementById("profileStatusText");
 const newPasswordInput = document.getElementById("newPasswordInput");
@@ -129,6 +137,7 @@ function setActiveTab(tabName) {
   tabButtons.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tabName);
   });
+  document.body.classList.remove("sidebar-open");
 }
 
 function closeProfileMenu() {
@@ -143,6 +152,7 @@ function openProfileMenu() {
 
 function setAuthedUI(isAuthed, email = "", userId = "") {
   isAuthenticated = isAuthed;
+  document.body.classList.remove("sidebar-open");
   publicLanding.hidden = isAuthed;
   googleLoginBtn.hidden = isAuthed;
   githubLoginBtn.hidden = isAuthed;
@@ -150,7 +160,10 @@ function setAuthedUI(isAuthed, email = "", userId = "") {
   logoutBtn.hidden = !isAuthed;
   connectAccountsBtn.hidden = !isAuthed;
   topRunBtn.hidden = !isAuthed;
+  topSettingsBtn.hidden = !isAuthed;
+  sidebarToggle.hidden = !isAuthed;
   userChip.hidden = !isAuthed;
+  appSidebar.hidden = !isAuthed;
   tabNav.hidden = !isAuthed;
   socialSection.hidden = !isAuthed;
   generatorSection.hidden = !isAuthed;
@@ -163,6 +176,7 @@ function setAuthedUI(isAuthed, email = "", userId = "") {
   profileSection.hidden = !isAuthed;
   profileDetailsSection.hidden = !isAuthed;
   securitySection.hidden = !isAuthed;
+  settingsSection.hidden = !isAuthed;
   authState.hidden = !isAuthed;
   authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
   userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
@@ -194,6 +208,7 @@ function applyProfileFromSession(session) {
   profileLocationInput.value = md.location || "";
   profileWebsiteInput.value = md.website || "";
   profileTimezoneInput.value = md.timezone || "Asia/Karachi";
+  settingsTimezoneMirror.value = md.timezone || "Asia/Karachi";
   profileBioInput.value = md.bio || "";
 }
 
@@ -264,6 +279,7 @@ function getSelectedPlatforms() {
 function getHistoryFilters() {
   return {
     platform: historyPlatformFilter.value || "all",
+    status: historyStatusFilter.value || "all",
     date: historyDateFilter.value || "",
   };
 }
@@ -605,6 +621,7 @@ async function loadHistory() {
 
   const filtered = data.posts.filter((post) => {
     if (filters.platform !== "all" && post.platform !== filters.platform) return false;
+    if (filters.status !== "all" && post.status !== filters.status) return false;
     if (filters.date) {
       const postDay = new Date(post.created_at).toISOString().slice(0, 10);
       if (postDay !== filters.date) return false;
@@ -730,6 +747,14 @@ topRunBtn.addEventListener("click", () => {
   contentInput.focus();
 });
 
+topSettingsBtn.addEventListener("click", () => {
+  setActiveTab("settings");
+});
+
+sidebarToggle.addEventListener("click", () => {
+  document.body.classList.toggle("sidebar-open");
+});
+
 userChip.addEventListener("click", (event) => {
   event.stopPropagation();
   if (profileMenuOpen) {
@@ -754,8 +779,14 @@ profileProfileBtn.addEventListener("click", () => {
   closeProfileMenu();
 });
 
+profileSettingsBtn.addEventListener("click", () => {
+  setActiveTab("settings");
+  closeProfileMenu();
+});
+
 refreshHistoryBtn.addEventListener("click", loadHistory);
 historyPlatformFilter.addEventListener("change", loadHistory);
+historyStatusFilter.addEventListener("change", loadHistory);
 historyDateFilter.addEventListener("change", loadHistory);
 
 connectLinkedInBtn.addEventListener("click", async () => {
