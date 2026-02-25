@@ -11,6 +11,13 @@ const authState = document.getElementById("authState");
 const tabNav = document.getElementById("tabNav");
 const userChip = document.getElementById("userChip");
 const userInitial = document.getElementById("userInitial");
+const profileMenu = document.getElementById("profileMenu");
+const profileMenuInitial = document.getElementById("profileMenuInitial");
+const profileMenuEmail = document.getElementById("profileMenuEmail");
+const profileMenuUserId = document.getElementById("profileMenuUserId");
+const profileDashboardBtn = document.getElementById("profileDashboardBtn");
+const profileDraftsBtn = document.getElementById("profileDraftsBtn");
+const profileLogoutBtn = document.getElementById("profileLogoutBtn");
 
 const socialSection = document.getElementById("socialSection");
 const generatorSection = document.getElementById("generatorSection");
@@ -57,6 +64,7 @@ const twitterStatus = document.getElementById("twitterStatus");
 const connectTwitterBtn = document.getElementById("connectTwitterBtn");
 const facebookStatus = document.getElementById("facebookStatus");
 const instagramStatus = document.getElementById("instagramStatus");
+let profileMenuOpen = false;
 
 function escapeHtml(value) {
   return String(value || "")
@@ -87,7 +95,17 @@ function setActiveTab(tabName) {
   });
 }
 
-function setAuthedUI(isAuthed, email = "") {
+function closeProfileMenu() {
+  profileMenu.hidden = true;
+  profileMenuOpen = false;
+}
+
+function openProfileMenu() {
+  profileMenu.hidden = false;
+  profileMenuOpen = true;
+}
+
+function setAuthedUI(isAuthed, email = "", userId = "") {
   googleLoginBtn.hidden = isAuthed;
   logoutBtn.hidden = !isAuthed;
   connectAccountsBtn.hidden = !isAuthed;
@@ -104,6 +122,10 @@ function setAuthedUI(isAuthed, email = "") {
   schedulesSection.hidden = !isAuthed;
   authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
   userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
+  profileMenuInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
+  profileMenuEmail.textContent = isAuthed ? email : "Not logged in";
+  profileMenuUserId.textContent = isAuthed && userId ? `ID: ${userId}` : "-";
+  closeProfileMenu();
   setActiveTab("dashboard");
 }
 
@@ -615,6 +637,25 @@ topRunBtn.addEventListener("click", () => {
   contentInput.focus();
 });
 
+userChip.addEventListener("click", (event) => {
+  event.stopPropagation();
+  if (profileMenuOpen) {
+    closeProfileMenu();
+  } else {
+    openProfileMenu();
+  }
+});
+
+profileDashboardBtn.addEventListener("click", () => {
+  setActiveTab("dashboard");
+  closeProfileMenu();
+});
+
+profileDraftsBtn.addEventListener("click", () => {
+  setActiveTab("drafts");
+  closeProfileMenu();
+});
+
 refreshHistoryBtn.addEventListener("click", loadHistory);
 historyPlatformFilter.addEventListener("change", loadHistory);
 historyDateFilter.addEventListener("change", loadHistory);
@@ -653,6 +694,26 @@ logoutBtn.addEventListener("click", async () => {
   setAuthedUI(false);
 });
 
+profileLogoutBtn.addEventListener("click", async () => {
+  await sbClient.auth.signOut();
+  currentSession = null;
+  setAuthedUI(false);
+});
+
+document.addEventListener("click", (event) => {
+  if (!profileMenuOpen) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (profileMenu.contains(target) || userChip.contains(target)) return;
+  closeProfileMenu();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeProfileMenu();
+  }
+});
+
 async function bootstrap() {
   if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
     authState.textContent = "Supabase library failed to load. Refresh and try again.";
@@ -664,7 +725,7 @@ async function bootstrap() {
   sbClient.auth.onAuthStateChange(async (_event, session) => {
     currentSession = session;
     if (session) {
-      setAuthedUI(true, session.user?.email || "");
+      setAuthedUI(true, session.user?.email || "", session.user?.id || "");
       await refreshAllData();
     } else {
       setAuthedUI(false);
@@ -681,7 +742,7 @@ async function bootstrap() {
   }
 
   const email = currentSession.user?.email || "";
-  setAuthedUI(true, email);
+  setAuthedUI(true, email, currentSession.user?.id || "");
   if (!toneInput.value) toneInput.value = "Professional";
   if (!regionInput.value) regionInput.value = "Pakistan";
 

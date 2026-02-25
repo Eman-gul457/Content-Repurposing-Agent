@@ -123,6 +123,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  position: relative;
 }
 
 .user-chip {
@@ -136,6 +137,69 @@ body::before {
   background: rgba(148, 163, 184, 0.18);
   font-size: 0.85rem;
   font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.user-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.55);
+}
+
+.profile-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 280px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(9, 16, 34, 0.96);
+  box-shadow: 0 22px 44px rgba(0, 0, 0, 0.45);
+  padding: 12px;
+  z-index: 40;
+  animation: pageFade 0.18s ease;
+}
+
+.profile-menu-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.profile-email {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-userid {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.profile-menu-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-action {
+  width: 100%;
+  justify-content: center;
 }
 
 .container {
@@ -567,6 +631,11 @@ button.cta {
   .tab-btn {
     font-size: 0.8rem;
     padding: 6px 10px;
+  }
+
+  .profile-menu {
+    right: 0;
+    width: min(92vw, 280px);
   }
 
   .post-card .row {
