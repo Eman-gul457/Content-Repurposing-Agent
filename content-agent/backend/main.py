@@ -240,6 +240,11 @@ def _run_agent_workflow(
             language_pref=payload.language_pref,
             timezone_name=settings.timezone,
             research_items=research_items,
+            business_name=payload.business_name,
+            niche=payload.niche,
+            audience=payload.audience,
+            tone=payload.tone,
+            region=payload.region,
             posts_per_week=3,
         )
 

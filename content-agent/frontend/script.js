@@ -1,16 +1,35 @@
 const { API_BASE_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
 const supabaseLib = window.supabase;
 let sbClient = null;
+let currentSession = null;
 
 const googleLoginBtn = document.getElementById("googleLoginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+const connectAccountsBtn = document.getElementById("connectAccountsBtn");
+const topRunBtn = document.getElementById("topRunBtn");
 const authState = document.getElementById("authState");
+const tabNav = document.getElementById("tabNav");
+const userChip = document.getElementById("userChip");
+const userInitial = document.getElementById("userInitial");
+
 const socialSection = document.getElementById("socialSection");
 const generatorSection = document.getElementById("generatorSection");
+const recentPlansSection = document.getElementById("recentPlansSection");
 const researchSection = document.getElementById("researchSection");
 const plansSection = document.getElementById("plansSection");
 const draftsSection = document.getElementById("draftsSection");
 const historySection = document.getElementById("historySection");
+const schedulesSection = document.getElementById("schedulesSection");
+
+const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
+const pageViews = {
+  dashboard: document.getElementById("page-dashboard"),
+  drafts: document.getElementById("page-drafts"),
+  history: document.getElementById("page-history"),
+  schedules: document.getElementById("page-schedules"),
+  research: document.getElementById("page-research"),
+};
+
 const contentInput = document.getElementById("contentInput");
 const businessNameInput = document.getElementById("businessNameInput");
 const nicheInput = document.getElementById("nicheInput");
@@ -20,11 +39,18 @@ const regionInput = document.getElementById("regionInput");
 const languagePrefInput = document.getElementById("languagePrefInput");
 const generateBtn = document.getElementById("generateBtn");
 const statusText = document.getElementById("statusText");
+
 const researchList = document.getElementById("researchList");
 const plansList = document.getElementById("plansList");
+const recentPlansList = document.getElementById("recentPlansList");
 const draftsList = document.getElementById("draftsList");
 const historyList = document.getElementById("historyList");
+const schedulesList = document.getElementById("schedulesList");
+
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
+const historyPlatformFilter = document.getElementById("historyPlatformFilter");
+const historyDateFilter = document.getElementById("historyDateFilter");
+
 const linkedinStatus = document.getElementById("linkedinStatus");
 const connectLinkedInBtn = document.getElementById("connectLinkedInBtn");
 const twitterStatus = document.getElementById("twitterStatus");
@@ -32,18 +58,53 @@ const connectTwitterBtn = document.getElementById("connectTwitterBtn");
 const facebookStatus = document.getElementById("facebookStatus");
 const instagramStatus = document.getElementById("instagramStatus");
 
-let currentSession = null;
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
+
+function renderStatusBadge(node, connected, label) {
+  node.className = `status-badge ${connected ? "connected" : "disconnected"}`;
+  node.innerHTML = `<span class="dot"></span>${escapeHtml(label)}`;
+}
+
+function setActiveTab(tabName) {
+  Object.entries(pageViews).forEach(([name, section]) => {
+    section.hidden = name !== tabName;
+  });
+  tabButtons.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  });
+}
 
 function setAuthedUI(isAuthed, email = "") {
   googleLoginBtn.hidden = isAuthed;
   logoutBtn.hidden = !isAuthed;
+  connectAccountsBtn.hidden = !isAuthed;
+  topRunBtn.hidden = !isAuthed;
+  userChip.hidden = !isAuthed;
+  tabNav.hidden = !isAuthed;
   socialSection.hidden = !isAuthed;
   generatorSection.hidden = !isAuthed;
+  recentPlansSection.hidden = !isAuthed;
   researchSection.hidden = !isAuthed;
   plansSection.hidden = !isAuthed;
   draftsSection.hidden = !isAuthed;
   historySection.hidden = !isAuthed;
-  authState.textContent = isAuthed ? `Logged in: ${email}` : "Not logged in";
+  schedulesSection.hidden = !isAuthed;
+  authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
+  userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
+  setActiveTab("dashboard");
 }
 
 async function api(path, options = {}) {
@@ -69,7 +130,6 @@ async function api(path, options = {}) {
   if (!res.ok) {
     throw new Error(body.detail || body.message || `Request failed (${res.status})`);
   }
-
   return body;
 }
 
@@ -81,6 +141,53 @@ function toLocalDateTimeInputValue(iso) {
   return local.toISOString().slice(0, 16);
 }
 
+function getSelectedPlatforms() {
+  const boxes = Array.from(document.querySelectorAll('input[name="platform"]:checked'));
+  return boxes.map((x) => x.value);
+}
+
+function getHistoryFilters() {
+  return {
+    platform: historyPlatformFilter.value || "all",
+    date: historyDateFilter.value || "",
+  };
+}
+
+function buildHistoryRows(posts) {
+  if (!posts.length) {
+    return "<p class='muted'>No matching history records.</p>";
+  }
+
+  const rows = posts
+    .map(
+      (post) => `
+      <div class="history-item">
+        <div class="history-row">
+          <div>${new Date(post.created_at).toLocaleString()}</div>
+          <div>${post.platform.toUpperCase()}</div>
+          <div>${escapeHtml((post.edited_text || post.generated_text || "").slice(0, 85))}</div>
+          <div>${post.status}</div>
+          <button class="ghost view-draft-btn" data-id="${post.id}" type="button">View</button>
+        </div>
+      </div>
+    `,
+    )
+    .join("");
+
+  return `
+    <div class="history-item history-head">
+      <div class="history-row">
+        <div>Date</div>
+        <div>Platform</div>
+        <div>Content</div>
+        <div>Status</div>
+        <div>Action</div>
+      </div>
+    </div>
+    ${rows}
+  `;
+}
+
 function renderDraft(post) {
   const isLinkedIn = post.platform === "linkedin";
   const isTwitter = post.platform === "twitter";
@@ -88,12 +195,13 @@ function renderDraft(post) {
   const canSchedule = isLinkedIn;
   const canAttachMedia = isLinkedIn || isTwitter;
   const mediaAccept = isTwitter ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
+
   const wrapper = document.createElement("div");
   wrapper.className = "post-card";
   wrapper.innerHTML = `
     <div class="post-title">${post.platform}</div>
     <div class="post-meta">Status: ${post.status}</div>
-    <textarea class="post-editor" id="editor-${post.id}">${post.edited_text || post.generated_text}</textarea>
+    <textarea class="post-editor" id="editor-${post.id}">${escapeHtml(post.edited_text || post.generated_text)}</textarea>
     <div class="row">
       <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
       <button id="approve-${post.id}" type="button">Approve</button>
@@ -107,8 +215,8 @@ function renderDraft(post) {
       <button id="upload-${post.id}" class="secondary" type="button" ${canAttachMedia ? "" : "disabled"}>Attach Media</button>
     </div>
     <div class="post-meta" id="media-${post.id}"></div>
-    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is only enabled for LinkedIn and Twitter right now." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
-    <div class="post-meta">${post.last_error ? `Error: ${post.last_error}` : ""}</div>
+    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is only enabled for LinkedIn and Twitter." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
+    <div class="post-meta">${post.last_error ? `Error: ${escapeHtml(post.last_error)}` : ""}</div>
   `;
 
   const feedback = wrapper.querySelector(`#feedback-${post.id}`);
@@ -127,11 +235,7 @@ function renderDraft(post) {
         setMedia("No media attached.");
         return;
       }
-      setMedia(
-        items
-          .map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [Asset ready]" : ""}`)
-          .join(" | "),
-      );
+      setMedia(items.map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [Asset ready]" : ""}`).join(" | "));
     } catch (err) {
       setMedia(`Media load failed: ${err.message}`);
     }
@@ -147,6 +251,7 @@ function renderDraft(post) {
       });
       setFeedback("Saved.");
       await loadDrafts();
+      await loadHistory();
     } catch (err) {
       setFeedback(`Save failed: ${err.message}`);
     }
@@ -160,7 +265,7 @@ function renderDraft(post) {
         body: JSON.stringify({ status: "approved" }),
       });
       setFeedback("Approved.");
-      await loadDrafts();
+      await refreshAllData();
     } catch (err) {
       setFeedback(`Approve failed: ${err.message}`);
     }
@@ -174,7 +279,7 @@ function renderDraft(post) {
         body: JSON.stringify({ status: "rejected" }),
       });
       setFeedback("Rejected.");
-      await loadDrafts();
+      await refreshAllData();
     } catch (err) {
       setFeedback(`Reject failed: ${err.message}`);
     }
@@ -186,17 +291,16 @@ function renderDraft(post) {
       if (isTwitter) {
         const text = wrapper.querySelector(`#editor-${post.id}`).value.trim();
         if (!text) {
-          setFeedback("Add some text before publishing.");
+          setFeedback("Add text before publishing.");
           return;
         }
-
         const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text.slice(0, 280))}`;
         window.open(intentUrl, "_blank", "noopener,noreferrer");
         await api(`/api/posts/${post.id}/manual-publish`, {
           method: "POST",
           body: JSON.stringify({ confirm: true }),
         });
-        setFeedback("Opened X composer. Attach images there and click Post.");
+        setFeedback("Opened X composer.");
       } else {
         setFeedback("Publishing to LinkedIn...");
         await api(`/api/posts/${post.id}/publish`, {
@@ -205,8 +309,7 @@ function renderDraft(post) {
         });
         setFeedback("Published successfully.");
       }
-      await loadDrafts();
-      await loadHistory();
+      await refreshAllData();
     } catch (err) {
       setFeedback(`Publish failed: ${err.message}`);
     }
@@ -221,13 +324,12 @@ function renderDraft(post) {
         return;
       }
       setFeedback("Scheduling...");
-      const scheduledAt = new Date(value).toISOString();
       await api(`/api/posts/${post.id}/schedule`, {
         method: "PATCH",
-        body: JSON.stringify({ scheduled_at: scheduledAt }),
+        body: JSON.stringify({ scheduled_at: new Date(value).toISOString() }),
       });
       setFeedback("Scheduled.");
-      await loadDrafts();
+      await refreshAllData();
     } catch (err) {
       setFeedback(`Schedule failed: ${err.message}`);
     }
@@ -238,7 +340,7 @@ function renderDraft(post) {
     const input = wrapper.querySelector(`#file-${post.id}`);
     const file = input.files?.[0];
     if (!file) {
-      setFeedback(isTwitter ? "Choose a PNG/JPG/WEBP image first." : "Choose a PNG, JPG, or PDF file first.");
+      setFeedback(isTwitter ? "Choose PNG/JPG/WEBP image first." : "Choose PNG/JPG/PDF first.");
       return;
     }
     try {
@@ -249,7 +351,6 @@ function renderDraft(post) {
         reader.onerror = () => reject(new Error("Could not read file"));
         reader.readAsDataURL(file);
       });
-
       await api("/api/uploads", {
         method: "POST",
         body: JSON.stringify({
@@ -268,13 +369,7 @@ function renderDraft(post) {
   });
 
   loadMedia();
-
   return wrapper;
-}
-
-function getSelectedPlatforms() {
-  const boxes = Array.from(document.querySelectorAll('input[name="platform"]:checked'));
-  return boxes.map((x) => x.value);
 }
 
 async function loadSocial() {
@@ -283,40 +378,64 @@ async function loadSocial() {
   const twitter = data.find((x) => x.platform === "twitter");
   const facebook = data.find((x) => x.platform === "facebook");
   const instagram = data.find((x) => x.platform === "instagram");
-  linkedinStatus.textContent = linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected";
-  twitterStatus.textContent = twitter?.connected ? `Connected: ${twitter.account_name || "Twitter"}` : "Not connected";
-  facebookStatus.textContent = facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected";
-  instagramStatus.textContent = instagram?.connected ? `Connected: ${instagram.account_name || "Instagram"}` : "Not connected";
+
+  renderStatusBadge(linkedinStatus, !!linkedin?.connected, linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected");
+  renderStatusBadge(twitterStatus, !!twitter?.connected, twitter?.connected ? `Connected: ${twitter.account_name || "Twitter/X"}` : "Not connected");
+  renderStatusBadge(facebookStatus, !!facebook?.connected, facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected");
+  renderStatusBadge(instagramStatus, !!instagram?.connected, instagram?.connected ? `Connected: ${instagram.account_name || "Instagram"}` : "Not connected");
 }
 
 async function loadResearch(limit = 20) {
   const data = await api(`/api/research?limit=${limit}`, { method: "GET" });
   researchList.innerHTML = "";
   if (!data.length) {
-    researchList.innerHTML = "<p class='muted'>No research items yet. Run workflow to collect trends.</p>";
+    researchList.innerHTML = "<p class='muted'>No research items yet. Run AI Agent to collect trends.</p>";
     return;
   }
-  data.forEach((item) => {
+
+  data.forEach((item, index) => {
     const node = document.createElement("div");
     node.className = "research-item";
-    const link = item.url ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${item.title}</a>` : item.title;
+    const relevance = Math.max(60, 98 - index * 5);
+    const title = escapeHtml(item.title);
+    const link = item.url
+      ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${title}</a>`
+      : title;
     node.innerHTML = `
       <strong>${item.source.toUpperCase()}</strong><br/>
       ${link}<br/>
-      <small>${item.snippet || ""}</small><br/>
+      <small>${escapeHtml(item.snippet || "")}</small><br/>
+      <small>Relevance score: ${relevance}%</small><br/>
       <small>${new Date(item.created_at).toLocaleString()}</small>
     `;
     researchList.appendChild(node);
   });
 }
 
-async function loadPlans(limit = 25) {
+async function loadPlans(limit = 30) {
   const data = await api(`/api/content-plans?limit=${limit}`, { method: "GET" });
   plansList.innerHTML = "";
+  recentPlansList.innerHTML = "";
+
   if (!data.length) {
-    plansList.innerHTML = "<p class='muted'>No plans yet. Run workflow to create weekly schedule.</p>";
+    plansList.innerHTML = "<p class='muted'>No plans yet. Run AI Agent to create schedule.</p>";
+    recentPlansList.innerHTML = "<p class='muted'>No plans generated yet.</p>";
     return;
   }
+
+  const recent = data.slice(0, 5);
+  recent.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "plan-item";
+    card.innerHTML = `
+      <strong>${escapeHtml(item.theme)}</strong><br/>
+      <small>Platform: ${item.platform.toUpperCase()}</small><br/>
+      <small>Status: ${item.status}</small><br/>
+      <small>Created: ${new Date(item.created_at).toLocaleString()}</small>
+    `;
+    recentPlansList.appendChild(card);
+  });
+
   data.forEach((item) => {
     const node = document.createElement("div");
     node.className = "plan-item";
@@ -324,10 +443,10 @@ async function loadPlans(limit = 25) {
     node.innerHTML = `
       <strong>${item.platform.toUpperCase()}</strong> - ${item.status}<br/>
       <small>Planned: ${item.planned_for ? new Date(item.planned_for).toLocaleString() : "N/A"}</small><br/>
-      <small>Theme: ${item.theme}</small><br/>
-      <small>Angle: ${item.post_angle}</small><br/>
+      <small>Theme: ${escapeHtml(item.theme)}</small><br/>
+      <small>Angle: ${escapeHtml(item.post_angle)}</small><br/>
       <div class="plan-actions">
-        <button class="secondary" id="gen-image-${item.id}" type="button">Generate Image</button>
+        <button class="secondary" id="gen-image-${item.id}" type="button">${hasGeneratedImage ? "Regenerate Visual" : "Generate Visual"}</button>
         ${hasGeneratedImage ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Open Image</a>` : "<small>Image not generated yet.</small>"}
       </div>
       ${hasGeneratedImage ? `<img class="plan-preview" src="${item.image_url}" alt="Plan ${item.id} preview" />` : ""}
@@ -345,7 +464,7 @@ async function loadPlans(limit = 25) {
         } catch (err) {
           statusText.textContent = `Image error: ${err.message}`;
           btn.disabled = false;
-          btn.textContent = "Generate Image";
+          btn.textContent = "Generate Visual";
         }
       });
     }
@@ -355,40 +474,104 @@ async function loadPlans(limit = 25) {
 async function loadDrafts() {
   const data = await api("/api/drafts");
   draftsList.innerHTML = "";
-  if (!data.posts.length) {
-    draftsList.innerHTML = "<p class='muted'>No drafts yet.</p>";
+
+  const draftLike = data.posts.filter((x) => x.status !== "posted");
+  if (!draftLike.length) {
+    draftsList.innerHTML = "<p class='muted'>No drafts pending.</p>";
     return;
   }
 
-  const latestByPlatform = [];
-  const seen = new Set();
-  for (const post of data.posts) {
-    if (seen.has(post.platform)) continue;
-    seen.add(post.platform);
-    latestByPlatform.push(post);
-  }
-
-  latestByPlatform.forEach((post) => draftsList.appendChild(renderDraft(post)));
+  draftLike.forEach((post) => draftsList.appendChild(renderDraft(post)));
 }
 
 async function loadHistory() {
   const data = await api("/api/drafts");
-  historyList.innerHTML = "";
-  data.posts.forEach((post) => {
-    const item = document.createElement("div");
-    item.className = "history-item";
-    item.innerHTML = `
-      <strong>#${post.id}</strong> ${post.platform.toUpperCase()} - ${post.status}<br/>
-      <small>${new Date(post.created_at).toLocaleString()}</small>
-    `;
-    historyList.appendChild(item);
+  const filters = getHistoryFilters();
+
+  const filtered = data.posts.filter((post) => {
+    if (filters.platform !== "all" && post.platform !== filters.platform) return false;
+    if (filters.date) {
+      const postDay = new Date(post.created_at).toISOString().slice(0, 10);
+      if (postDay !== filters.date) return false;
+    }
+    return true;
   });
+
+  historyList.innerHTML = buildHistoryRows(filtered);
+  historyList.querySelectorAll(".view-draft-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setActiveTab("drafts");
+      statusText.textContent = `Viewing draft #${btn.dataset.id}`;
+    });
+  });
+}
+
+async function loadSchedules() {
+  const data = await api("/api/drafts");
+  schedulesList.innerHTML = "";
+  const scheduled = data.posts.filter((x) => x.status === "scheduled");
+  if (!scheduled.length) {
+    schedulesList.innerHTML = "<p class='muted'>No scheduled posts yet.</p>";
+    return;
+  }
+
+  scheduled.forEach((post) => {
+    const node = document.createElement("div");
+    node.className = "schedule-item";
+    node.innerHTML = `
+      <strong>${post.platform.toUpperCase()}</strong><br/>
+      <small>Scheduled: ${post.scheduled_at ? new Date(post.scheduled_at).toLocaleString() : "N/A"}</small><br/>
+      <small>${escapeHtml((post.edited_text || post.generated_text || "").slice(0, 130))}</small>
+      <div class="row">
+        <input type="datetime-local" id="edit-schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
+        <button class="secondary" id="save-schedule-${post.id}" type="button">Edit Schedule</button>
+        <button class="warn" id="cancel-schedule-${post.id}" type="button">Cancel</button>
+      </div>
+    `;
+    schedulesList.appendChild(node);
+
+    node.querySelector(`#save-schedule-${post.id}`).addEventListener("click", async () => {
+      try {
+        const value = node.querySelector(`#edit-schedule-${post.id}`).value;
+        if (!value) {
+          statusText.textContent = "Select a valid date/time.";
+          return;
+        }
+        await api(`/api/posts/${post.id}/schedule`, {
+          method: "PATCH",
+          body: JSON.stringify({ scheduled_at: new Date(value).toISOString() }),
+        });
+        statusText.textContent = "Schedule updated.";
+        await refreshAllData();
+      } catch (err) {
+        statusText.textContent = `Schedule update failed: ${err.message}`;
+      }
+    });
+
+    node.querySelector(`#cancel-schedule-${post.id}`).addEventListener("click", async () => {
+      try {
+        await api(`/api/posts/${post.id}/status`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "draft" }),
+        });
+        statusText.textContent = "Schedule canceled.";
+        await refreshAllData();
+      } catch (err) {
+        statusText.textContent = `Cancel failed: ${err.message}`;
+      }
+    });
+  });
+}
+
+async function refreshAllData() {
+  await Promise.all([loadSocial(), loadResearch(), loadPlans(), loadDrafts(), loadHistory(), loadSchedules()]);
+  refreshIcons();
 }
 
 generateBtn.addEventListener("click", async () => {
   const content = contentInput.value.trim();
   if (!content) {
-    statusText.textContent = "Please enter content.";
+    statusText.textContent = "Please enter content first.";
     return;
   }
   const platforms = getSelectedPlatforms();
@@ -408,23 +591,33 @@ generateBtn.addEventListener("click", async () => {
     language_pref: languagePrefInput.value || "english_urdu",
   };
 
-  statusText.textContent = "Running research + planning + creation...";
+  statusText.textContent = "Running workflow...";
   try {
     const result = await api("/api/agent/run", {
       method: "POST",
       body: JSON.stringify(payload),
     });
     statusText.textContent = `Workflow complete. Run #${result.run_id}`;
-    await loadResearch();
-    await loadPlans();
-    await loadDrafts();
-    await loadHistory();
+    await refreshAllData();
+    setActiveTab("drafts");
   } catch (err) {
     statusText.textContent = `Error: ${err.message}`;
   }
 });
 
+connectAccountsBtn.addEventListener("click", () => {
+  setActiveTab("dashboard");
+  socialSection.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+topRunBtn.addEventListener("click", () => {
+  setActiveTab("dashboard");
+  contentInput.focus();
+});
+
 refreshHistoryBtn.addEventListener("click", loadHistory);
+historyPlatformFilter.addEventListener("change", loadHistory);
+historyDateFilter.addEventListener("change", loadHistory);
 
 connectLinkedInBtn.addEventListener("click", async () => {
   const data = await api("/api/linkedin/connect/start", { method: "GET" });
@@ -436,21 +629,19 @@ connectTwitterBtn.addEventListener("click", async () => {
   window.location.href = data.authorization_url;
 });
 
+tabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
+});
+
 googleLoginBtn.addEventListener("click", async () => {
   try {
-    if (!sbClient) {
-      throw new Error("Supabase client failed to initialize. Refresh and try again.");
-    }
+    if (!sbClient) throw new Error("Supabase client failed to initialize.");
     authState.textContent = "Redirecting to Google...";
     const { error } = await sbClient.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-      },
+      options: { redirectTo: window.location.origin },
     });
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   } catch (err) {
     authState.textContent = `Login failed: ${err.message}`;
   }
@@ -464,20 +655,17 @@ logoutBtn.addEventListener("click", async () => {
 
 async function bootstrap() {
   if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
-    authState.textContent = "Supabase library failed to load. Check internet and reload.";
+    authState.textContent = "Supabase library failed to load. Refresh and try again.";
     return;
   }
+
   sbClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
   sbClient.auth.onAuthStateChange(async (_event, session) => {
     currentSession = session;
     if (session) {
       setAuthedUI(true, session.user?.email || "");
-      await loadSocial();
-      await loadResearch();
-      await loadPlans();
-      await loadDrafts();
-      await loadHistory();
+      await refreshAllData();
     } else {
       setAuthedUI(false);
     }
@@ -488,6 +676,7 @@ async function bootstrap() {
 
   if (!currentSession) {
     setAuthedUI(false);
+    refreshIcons();
     return;
   }
 
@@ -496,7 +685,7 @@ async function bootstrap() {
   if (!toneInput.value) toneInput.value = "Professional";
   if (!regionInput.value) regionInput.value = "Pakistan";
 
-  await Promise.all([loadSocial(), loadResearch(), loadPlans(), loadDrafts(), loadHistory()]);
+  await refreshAllData();
 
   const params = new URLSearchParams(window.location.search);
   if (params.get("linkedin") === "connected") {
@@ -520,5 +709,5 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  statusText.textContent = `Startup error: ${err.message}`;
+  authState.textContent = `Startup error: ${err.message}`;
 });
