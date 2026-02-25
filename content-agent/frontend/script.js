@@ -163,6 +163,7 @@ function setAuthedUI(isAuthed, email = "", userId = "") {
   profileSection.hidden = !isAuthed;
   profileDetailsSection.hidden = !isAuthed;
   securitySection.hidden = !isAuthed;
+  authState.hidden = !isAuthed;
   authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
   userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
   profileMenuInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
@@ -773,18 +774,22 @@ tabButtons.forEach((btn) => {
 
 async function onGoogleLogin() {
   try {
+    authState.hidden = false;
     authState.textContent = "Redirecting to Google...";
     await signInWithProvider("google");
   } catch (err) {
+    authState.hidden = false;
     authState.textContent = `Login failed: ${err.message}`;
   }
 }
 
 async function onGithubLogin() {
   try {
+    authState.hidden = false;
     authState.textContent = "Redirecting to GitHub...";
     await signInWithProvider("github");
   } catch (err) {
+    authState.hidden = false;
     authState.textContent = `GitHub login failed: ${err.message}`;
   }
 }
@@ -799,10 +804,12 @@ async function onEmailMagicLink(sourceInput = null) {
     } else {
       email = window.prompt("Enter your email for magic link login:", "") || "";
     }
+    authState.hidden = false;
     authState.textContent = "Sending magic link...";
     await sendMagicLink(email);
     authState.textContent = "Magic link sent. Check your email inbox.";
   } catch (err) {
+    authState.hidden = false;
     authState.textContent = `Email login failed: ${err.message}`;
   }
 }
