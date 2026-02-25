@@ -271,6 +271,35 @@ body::before {
   gap: 10px;
 }
 
+.landing-value-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.landing-value-card {
+  text-align: left;
+  border-radius: 14px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.66), rgba(15, 23, 42, 0.28));
+}
+
+.landing-value-card h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #dbe4f4;
+}
+
+.landing-value-card p {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #9fb0cb;
+}
+
 .page-view {
   display: grid;
   gap: 16px;
@@ -772,6 +801,10 @@ button.cta {
   }
 
   .landing-email-row {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-value-grid {
     grid-template-columns: 1fr;
   }
 
