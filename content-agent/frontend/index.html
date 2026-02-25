@@ -24,7 +24,9 @@
       <button class="tab-btn" data-tab="profile" type="button">Profile</button>
     </nav>
     <div class="topbar-right">
-      <button id="googleLoginBtn" class="ghost">Login with Google</button>
+      <button id="googleLoginBtn" class="ghost">Google</button>
+      <button id="githubLoginBtn" class="ghost">GitHub</button>
+      <button id="emailLoginTopBtn" class="ghost">Email Link</button>
       <button id="connectAccountsBtn" class="ghost" hidden>Connect Accounts</button>
       <button id="topRunBtn" class="cta" hidden>Run Agent</button>
       <button id="logoutBtn" class="ghost" hidden>Logout</button>
@@ -51,6 +53,60 @@
 
   <main class="container">
     <div id="authState" class="auth-banner">Not logged in</div>
+
+    <section id="publicLanding" class="public-landing card fade-in">
+      <div class="landing-meta">
+        <span class="online-dot"></span>
+        <span>AI Agent Platform</span>
+        <span class="muted">Research + Draft + Approval + Publishing</span>
+      </div>
+      <div class="landing-hero">
+        <div class="landing-copy">
+          <p class="landing-kicker">AI Content Operating System</p>
+          <h1>Unlock Top Marketing Content, Now One Click Away</h1>
+          <p class="landing-sub">
+            Plan, generate, review, schedule, and publish cross-platform content from one dashboard built for teams.
+          </p>
+          <div class="landing-actions">
+            <button id="landingGoogleBtn" class="cta" type="button">Continue with Google</button>
+            <button id="landingGithubBtn" class="ghost" type="button">Continue with GitHub</button>
+          </div>
+          <div class="landing-email-row">
+            <input id="emailLoginInput" type="text" placeholder="Enter email for magic link sign in" />
+            <button id="emailLoginBtn" class="secondary" type="button">Send Magic Link</button>
+          </div>
+          <div class="landing-trust">
+            <span>20k+ generated drafts</span>
+            <span>5 research items/day</span>
+            <span>Free-tier compatible</span>
+          </div>
+        </div>
+        <div class="landing-visual">
+          <div class="orbit orbit-1"></div>
+          <div class="orbit orbit-2"></div>
+          <div class="orbit orbit-3"></div>
+          <div class="orbit-node node-a">L</div>
+          <div class="orbit-node node-b">X</div>
+          <div class="orbit-node node-c">IG</div>
+          <div class="orbit-node node-d">FB</div>
+          <div class="orbit-center">20k+</div>
+        </div>
+      </div>
+      <div class="landing-grid">
+        <article class="landing-card">
+          <h3>Research Brain</h3>
+          <p>Collects Google News, Reddit, RSS, and existing content patterns.</p>
+        </article>
+        <article class="landing-card">
+          <h3>AI Creation Engine</h3>
+          <p>Generates platform-ready posts in English + Urdu with review workflow.</p>
+        </article>
+        <article class="landing-card">
+          <h3>Approval + Scheduling</h3>
+          <p>Approve, reject, and schedule posts with status tracking in one place.</p>
+        </article>
+      </div>
+    </section>
 
     <section id="page-dashboard" class="page-view">
       <header class="hero card fade-in">

@@ -2,8 +2,11 @@ const { API_BASE_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONF
 const supabaseLib = window.supabase;
 let sbClient = null;
 let currentSession = null;
+let isAuthenticated = false;
 
 const googleLoginBtn = document.getElementById("googleLoginBtn");
+const githubLoginBtn = document.getElementById("githubLoginBtn");
+const emailLoginTopBtn = document.getElementById("emailLoginTopBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const connectAccountsBtn = document.getElementById("connectAccountsBtn");
 const topRunBtn = document.getElementById("topRunBtn");
@@ -31,6 +34,7 @@ const schedulesSection = document.getElementById("schedulesSection");
 const profileSection = document.getElementById("profileSection");
 const profileDetailsSection = document.getElementById("profileDetailsSection");
 const securitySection = document.getElementById("securitySection");
+const publicLanding = document.getElementById("publicLanding");
 
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const pageViews = {
@@ -43,6 +47,10 @@ const pageViews = {
 };
 
 const contentInput = document.getElementById("contentInput");
+const landingGoogleBtn = document.getElementById("landingGoogleBtn");
+const landingGithubBtn = document.getElementById("landingGithubBtn");
+const emailLoginInput = document.getElementById("emailLoginInput");
+const emailLoginBtn = document.getElementById("emailLoginBtn");
 const businessNameInput = document.getElementById("businessNameInput");
 const nicheInput = document.getElementById("nicheInput");
 const audienceInput = document.getElementById("audienceInput");
@@ -109,6 +117,12 @@ function renderStatusBadge(node, connected, label) {
 }
 
 function setActiveTab(tabName) {
+  if (!isAuthenticated) {
+    Object.values(pageViews).forEach((section) => {
+      section.hidden = true;
+    });
+    return;
+  }
   Object.entries(pageViews).forEach(([name, section]) => {
     section.hidden = name !== tabName;
   });
@@ -128,7 +142,11 @@ function openProfileMenu() {
 }
 
 function setAuthedUI(isAuthed, email = "", userId = "") {
+  isAuthenticated = isAuthed;
+  publicLanding.hidden = isAuthed;
   googleLoginBtn.hidden = isAuthed;
+  githubLoginBtn.hidden = isAuthed;
+  emailLoginTopBtn.hidden = isAuthed;
   logoutBtn.hidden = !isAuthed;
   connectAccountsBtn.hidden = !isAuthed;
   topRunBtn.hidden = !isAuthed;
@@ -153,7 +171,13 @@ function setAuthedUI(isAuthed, email = "", userId = "") {
   profileBigInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
   profileDisplayEmail.textContent = isAuthed ? email : "Not logged in";
   closeProfileMenu();
-  setActiveTab("dashboard");
+  if (isAuthed) {
+    setActiveTab("dashboard");
+  } else {
+    Object.values(pageViews).forEach((section) => {
+      section.hidden = true;
+    });
+  }
 }
 
 function applyProfileFromSession(session) {
@@ -196,6 +220,31 @@ async function api(path, options = {}) {
     throw new Error(body.detail || body.message || `Request failed (${res.status})`);
   }
   return body;
+}
+
+async function signInWithProvider(provider) {
+  if (!sbClient) throw new Error("Supabase client failed to initialize.");
+  const { error } = await sbClient.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) {
+    throw error;
+  }
+}
+
+async function sendMagicLink(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized || !normalized.includes("@")) {
+    throw new Error("Enter a valid email address.");
+  }
+  const { error } = await sbClient.auth.signInWithOtp({
+    email: normalized,
+    options: { emailRedirectTo: window.location.origin },
+  });
+  if (error) {
+    throw error;
+  }
 }
 
 function toLocalDateTimeInputValue(iso) {
@@ -722,17 +771,52 @@ tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
 });
 
-googleLoginBtn.addEventListener("click", async () => {
+async function onGoogleLogin() {
   try {
-    if (!sbClient) throw new Error("Supabase client failed to initialize.");
     authState.textContent = "Redirecting to Google...";
-    const { error } = await sbClient.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) throw error;
+    await signInWithProvider("google");
   } catch (err) {
     authState.textContent = `Login failed: ${err.message}`;
+  }
+}
+
+async function onGithubLogin() {
+  try {
+    authState.textContent = "Redirecting to GitHub...";
+    await signInWithProvider("github");
+  } catch (err) {
+    authState.textContent = `GitHub login failed: ${err.message}`;
+  }
+}
+
+async function onEmailMagicLink(sourceInput = null) {
+  try {
+    let email = "";
+    if (sourceInput && sourceInput.value) {
+      email = sourceInput.value;
+    } else if (currentSession?.user?.email) {
+      email = currentSession.user.email;
+    } else {
+      email = window.prompt("Enter your email for magic link login:", "") || "";
+    }
+    authState.textContent = "Sending magic link...";
+    await sendMagicLink(email);
+    authState.textContent = "Magic link sent. Check your email inbox.";
+  } catch (err) {
+    authState.textContent = `Email login failed: ${err.message}`;
+  }
+}
+
+googleLoginBtn.addEventListener("click", onGoogleLogin);
+githubLoginBtn.addEventListener("click", onGithubLogin);
+emailLoginTopBtn.addEventListener("click", () => onEmailMagicLink(null));
+landingGoogleBtn.addEventListener("click", onGoogleLogin);
+landingGithubBtn.addEventListener("click", onGithubLogin);
+emailLoginBtn.addEventListener("click", () => onEmailMagicLink(emailLoginInput));
+emailLoginInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    onEmailMagicLink(emailLoginInput);
   }
 });
 
