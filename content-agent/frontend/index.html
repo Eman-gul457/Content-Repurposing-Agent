@@ -21,6 +21,7 @@
       <button class="tab-btn" data-tab="history" type="button">History</button>
       <button class="tab-btn" data-tab="schedules" type="button">Schedules</button>
       <button class="tab-btn" data-tab="research" type="button">Research</button>
+      <button class="tab-btn" data-tab="profile" type="button">Profile</button>
     </nav>
     <div class="topbar-right">
       <button id="googleLoginBtn" class="ghost">Login with Google</button>
@@ -41,6 +42,7 @@
         <div class="profile-menu-actions">
           <button id="profileDashboardBtn" class="ghost profile-action" type="button">Open Dashboard</button>
           <button id="profileDraftsBtn" class="ghost profile-action" type="button">Open Drafts</button>
+          <button id="profileProfileBtn" class="ghost profile-action" type="button">Open Profile</button>
           <button id="profileLogoutBtn" class="warn profile-action" type="button">Logout</button>
         </div>
       </div>
@@ -167,6 +169,53 @@
       <section class="card fade-in-up" id="researchSection" hidden>
         <h2 class="section-title"><i data-lucide="search"></i> Research (Daily max: 5)</h2>
         <div id="researchList"></div>
+      </section>
+    </section>
+
+    <section id="page-profile" class="page-view" hidden>
+      <section class="profile-hero card fade-in-up" id="profileSection" hidden>
+        <div class="profile-cover"></div>
+        <div class="profile-main">
+          <div id="profileBigInitial" class="profile-big-avatar">U</div>
+          <div class="profile-main-text">
+            <h2 id="profileDisplayName">Your Profile</h2>
+            <p id="profileDisplayEmail" class="muted">Not logged in</p>
+            <div class="profile-badges">
+              <span class="profile-badge">AI Agent User</span>
+              <span class="profile-badge">Timezone: Asia/Karachi</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card fade-in-up" id="profileDetailsSection" hidden>
+        <h2 class="section-title"><i data-lucide="user-round"></i> Public Profile</h2>
+        <div class="profile-form-grid">
+          <input id="profileFullNameInput" type="text" placeholder="Full name" />
+          <input id="profileCompanyInput" type="text" placeholder="Company / Business name" />
+          <input id="profileRoleInput" type="text" placeholder="Role (e.g. Founder, Marketer)" />
+          <input id="profileLocationInput" type="text" placeholder="Location (e.g. Karachi, Pakistan)" />
+          <input id="profileWebsiteInput" type="text" placeholder="Website URL" />
+          <input id="profileTimezoneInput" type="text" placeholder="Timezone" value="Asia/Karachi" />
+        </div>
+        <textarea id="profileBioInput" placeholder="About you"></textarea>
+        <div class="row">
+          <button id="saveProfileBtn" class="cta" type="button">Save Profile</button>
+          <span id="profileStatusText" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="card fade-in-up" id="securitySection" hidden>
+        <h2 class="section-title"><i data-lucide="shield-check"></i> Security</h2>
+        <div class="security-grid">
+          <input id="newPasswordInput" type="password" placeholder="New password (min 8 characters)" />
+          <input id="confirmPasswordInput" type="password" placeholder="Confirm new password" />
+        </div>
+        <div class="row">
+          <button id="changePasswordBtn" class="secondary" type="button">Change Password</button>
+          <button id="sendResetEmailBtn" class="ghost" type="button">Send Reset Email</button>
+          <span id="securityStatusText" class="muted"></span>
+        </div>
       </section>
     </section>
   </main>

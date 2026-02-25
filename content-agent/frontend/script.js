@@ -17,6 +17,7 @@ const profileMenuEmail = document.getElementById("profileMenuEmail");
 const profileMenuUserId = document.getElementById("profileMenuUserId");
 const profileDashboardBtn = document.getElementById("profileDashboardBtn");
 const profileDraftsBtn = document.getElementById("profileDraftsBtn");
+const profileProfileBtn = document.getElementById("profileProfileBtn");
 const profileLogoutBtn = document.getElementById("profileLogoutBtn");
 
 const socialSection = document.getElementById("socialSection");
@@ -27,6 +28,9 @@ const plansSection = document.getElementById("plansSection");
 const draftsSection = document.getElementById("draftsSection");
 const historySection = document.getElementById("historySection");
 const schedulesSection = document.getElementById("schedulesSection");
+const profileSection = document.getElementById("profileSection");
+const profileDetailsSection = document.getElementById("profileDetailsSection");
+const securitySection = document.getElementById("securitySection");
 
 const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
 const pageViews = {
@@ -35,6 +39,7 @@ const pageViews = {
   history: document.getElementById("page-history"),
   schedules: document.getElementById("page-schedules"),
   research: document.getElementById("page-research"),
+  profile: document.getElementById("page-profile"),
 };
 
 const contentInput = document.getElementById("contentInput");
@@ -64,6 +69,23 @@ const twitterStatus = document.getElementById("twitterStatus");
 const connectTwitterBtn = document.getElementById("connectTwitterBtn");
 const facebookStatus = document.getElementById("facebookStatus");
 const instagramStatus = document.getElementById("instagramStatus");
+const profileBigInitial = document.getElementById("profileBigInitial");
+const profileDisplayName = document.getElementById("profileDisplayName");
+const profileDisplayEmail = document.getElementById("profileDisplayEmail");
+const profileFullNameInput = document.getElementById("profileFullNameInput");
+const profileCompanyInput = document.getElementById("profileCompanyInput");
+const profileRoleInput = document.getElementById("profileRoleInput");
+const profileLocationInput = document.getElementById("profileLocationInput");
+const profileWebsiteInput = document.getElementById("profileWebsiteInput");
+const profileTimezoneInput = document.getElementById("profileTimezoneInput");
+const profileBioInput = document.getElementById("profileBioInput");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const profileStatusText = document.getElementById("profileStatusText");
+const newPasswordInput = document.getElementById("newPasswordInput");
+const confirmPasswordInput = document.getElementById("confirmPasswordInput");
+const changePasswordBtn = document.getElementById("changePasswordBtn");
+const sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
+const securityStatusText = document.getElementById("securityStatusText");
 let profileMenuOpen = false;
 
 function escapeHtml(value) {
@@ -120,13 +142,34 @@ function setAuthedUI(isAuthed, email = "", userId = "") {
   draftsSection.hidden = !isAuthed;
   historySection.hidden = !isAuthed;
   schedulesSection.hidden = !isAuthed;
+  profileSection.hidden = !isAuthed;
+  profileDetailsSection.hidden = !isAuthed;
+  securitySection.hidden = !isAuthed;
   authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
   userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
   profileMenuInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
   profileMenuEmail.textContent = isAuthed ? email : "Not logged in";
   profileMenuUserId.textContent = isAuthed && userId ? `ID: ${userId}` : "-";
+  profileBigInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
+  profileDisplayEmail.textContent = isAuthed ? email : "Not logged in";
   closeProfileMenu();
   setActiveTab("dashboard");
+}
+
+function applyProfileFromSession(session) {
+  const email = session?.user?.email || "";
+  const md = session?.user?.user_metadata || {};
+  const fullName = md.full_name || md.name || "";
+  profileDisplayName.textContent = fullName || "Your Profile";
+  profileDisplayEmail.textContent = email || "Not logged in";
+  profileMenuEmail.textContent = email || "Not logged in";
+  profileFullNameInput.value = md.full_name || "";
+  profileCompanyInput.value = md.company || "";
+  profileRoleInput.value = md.role || "";
+  profileLocationInput.value = md.location || "";
+  profileWebsiteInput.value = md.website || "";
+  profileTimezoneInput.value = md.timezone || "Asia/Karachi";
+  profileBioInput.value = md.bio || "";
 }
 
 async function api(path, options = {}) {
@@ -656,6 +699,11 @@ profileDraftsBtn.addEventListener("click", () => {
   closeProfileMenu();
 });
 
+profileProfileBtn.addEventListener("click", () => {
+  setActiveTab("profile");
+  closeProfileMenu();
+});
+
 refreshHistoryBtn.addEventListener("click", loadHistory);
 historyPlatformFilter.addEventListener("change", loadHistory);
 historyDateFilter.addEventListener("change", loadHistory);
@@ -700,6 +748,69 @@ profileLogoutBtn.addEventListener("click", async () => {
   setAuthedUI(false);
 });
 
+saveProfileBtn.addEventListener("click", async () => {
+  if (!currentSession) return;
+  try {
+    profileStatusText.textContent = "Saving profile...";
+    const data = {
+      full_name: profileFullNameInput.value.trim(),
+      company: profileCompanyInput.value.trim(),
+      role: profileRoleInput.value.trim(),
+      location: profileLocationInput.value.trim(),
+      website: profileWebsiteInput.value.trim(),
+      timezone: profileTimezoneInput.value.trim() || "Asia/Karachi",
+      bio: profileBioInput.value.trim(),
+    };
+    const { data: updated, error } = await sbClient.auth.updateUser({ data });
+    if (error) throw error;
+    if (updated?.user) {
+      currentSession = { ...currentSession, user: updated.user };
+      applyProfileFromSession({ user: updated.user });
+    }
+    profileStatusText.textContent = "Profile updated.";
+  } catch (err) {
+    profileStatusText.textContent = `Save failed: ${err.message}`;
+  }
+});
+
+changePasswordBtn.addEventListener("click", async () => {
+  if (!currentSession) return;
+  const pass = newPasswordInput.value.trim();
+  const confirm = confirmPasswordInput.value.trim();
+  if (pass.length < 8) {
+    securityStatusText.textContent = "Password must be at least 8 characters.";
+    return;
+  }
+  if (pass !== confirm) {
+    securityStatusText.textContent = "Password confirmation does not match.";
+    return;
+  }
+  try {
+    securityStatusText.textContent = "Updating password...";
+    const { error } = await sbClient.auth.updateUser({ password: pass });
+    if (error) throw error;
+    newPasswordInput.value = "";
+    confirmPasswordInput.value = "";
+    securityStatusText.textContent = "Password updated successfully.";
+  } catch (err) {
+    securityStatusText.textContent = `Password update failed: ${err.message}`;
+  }
+});
+
+sendResetEmailBtn.addEventListener("click", async () => {
+  if (!currentSession?.user?.email) return;
+  try {
+    securityStatusText.textContent = "Sending reset email...";
+    const { error } = await sbClient.auth.resetPasswordForEmail(currentSession.user.email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) throw error;
+    securityStatusText.textContent = "Reset email sent.";
+  } catch (err) {
+    securityStatusText.textContent = `Reset email failed: ${err.message}`;
+  }
+});
+
 document.addEventListener("click", (event) => {
   if (!profileMenuOpen) return;
   const target = event.target;
@@ -726,6 +837,7 @@ async function bootstrap() {
     currentSession = session;
     if (session) {
       setAuthedUI(true, session.user?.email || "", session.user?.id || "");
+      applyProfileFromSession(session);
       await refreshAllData();
     } else {
       setAuthedUI(false);
@@ -743,6 +855,7 @@ async function bootstrap() {
 
   const email = currentSession.user?.email || "";
   setAuthedUI(true, email, currentSession.user?.id || "");
+  applyProfileFromSession(currentSession);
   if (!toneInput.value) toneInput.value = "Professional";
   if (!regionInput.value) regionInput.value = "Pakistan";
 
