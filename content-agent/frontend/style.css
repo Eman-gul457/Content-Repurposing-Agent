@@ -87,9 +87,13 @@ body {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100vh;
   padding-top: 64px;
+}
+
+body.is-authed .app-shell {
+  grid-template-columns: 240px minmax(0, 1fr);
 }
 
 .sidebar {

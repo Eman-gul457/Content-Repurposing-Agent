@@ -153,6 +153,7 @@ function openProfileMenu() {
 function setAuthedUI(isAuthed, email = "", userId = "") {
   isAuthenticated = isAuthed;
   document.body.classList.remove("sidebar-open");
+  document.body.classList.toggle("is-authed", isAuthed);
   publicLanding.hidden = isAuthed;
   googleLoginBtn.hidden = isAuthed;
   githubLoginBtn.hidden = isAuthed;
