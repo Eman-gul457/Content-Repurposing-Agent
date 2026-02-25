@@ -2,9 +2,9 @@
 
 :root {
   --bg: #020617;
-  --bg-2: #0b1222;
-  --bg-3: #11183a;
-  --card: rgba(10, 18, 36, 0.78);
+  --bg-2: #070f1f;
+  --bg-3: #0b1430;
+  --card: rgba(9, 16, 31, 0.82);
   --card-border: rgba(148, 163, 184, 0.2);
   --text: #e2e8f0;
   --muted: #94a3b8;
@@ -30,9 +30,8 @@ body {
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at 10% 0%, rgba(99, 102, 241, 0.14), transparent 34%),
-    radial-gradient(circle at 95% 8%, rgba(99, 102, 241, 0.12), transparent 34%),
-    linear-gradient(170deg, var(--bg-2), var(--bg) 54%, var(--bg-3));
+    radial-gradient(circle at 85% -10%, rgba(99, 102, 241, 0.1), transparent 36%),
+    linear-gradient(170deg, var(--bg-2), var(--bg) 58%, var(--bg-3));
   overflow-x: hidden;
 }
 
@@ -55,7 +54,7 @@ body::before {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   background: rgba(2, 6, 23, 0.86);
@@ -92,8 +91,8 @@ body::before {
   gap: 8px;
   padding: 4px;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.55);
 }
 
 .tab-btn {
@@ -103,7 +102,7 @@ body::before {
   border: 1px solid transparent;
   font-size: 0.86rem;
   background: transparent;
-  color: var(--muted);
+  color: #9fafc3;
   box-shadow: none;
 }
 
@@ -116,7 +115,7 @@ body::before {
 .tab-btn.active {
   color: #ffffff;
   background: linear-gradient(90deg, var(--primary), var(--secondary));
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.24);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.24);
 }
 
 .topbar-right {
@@ -203,7 +202,7 @@ body::before {
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1100px;
   margin: 14px auto 30px;
   padding: 0 16px;
   display: grid;
@@ -213,7 +212,7 @@ body::before {
 .auth-banner {
   border-radius: 10px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.3);
+  background: rgba(15, 23, 42, 0.22);
   color: #9fb0cb;
   padding: 8px 10px;
   font-size: 0.84rem;
@@ -321,26 +320,19 @@ body::before {
 }
 
 .hero-glow {
-  position: absolute;
-  right: -70px;
-  top: -90px;
-  width: 250px;
-  height: 250px;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.34), rgba(99, 102, 241, 0));
-  pointer-events: none;
+  display: none;
 }
 
 .hero h1 {
   margin: 0;
-  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
   font-weight: 700;
   letter-spacing: 0.01em;
 }
 
 .hero p {
-  margin: 10px 0 0;
-  color: var(--muted);
+  margin: 8px 0 0;
+  color: #a8bad2;
 }
 
 .dashboard-grid {
@@ -352,17 +344,17 @@ body::before {
 .card {
   border-radius: 16px;
   background: var(--card);
-  border: 1px solid var(--card-border);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
-  padding: 18px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+  padding: 20px;
   transition: transform 0.2s ease, border-color 0.2s ease;
 }
 
 .card:hover {
   transform: translateY(-1px);
-  border-color: rgba(129, 140, 248, 0.38);
+  border-color: rgba(129, 140, 248, 0.3);
 }
 
 .section-title {
@@ -370,7 +362,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: clamp(1.1rem, 2vw, 1.9rem);
+  font-size: clamp(1.2rem, 2vw, 1.8rem);
   font-weight: 600;
 }
 
@@ -432,14 +424,14 @@ button {
   letter-spacing: 0.01em;
   cursor: pointer;
   transition: all 0.2s ease;
-  background: rgba(30, 41, 59, 0.88);
+  background: rgba(30, 41, 59, 0.74);
   box-shadow: none;
 }
 
 button:hover {
   transform: translateY(-1px);
-  border-color: rgba(129, 140, 248, 0.7);
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.5);
+  border-color: rgba(129, 140, 248, 0.56);
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.44);
 }
 
 button:active {
@@ -454,9 +446,10 @@ button:disabled {
 }
 
 button.secondary {
-  border-color: rgba(20, 184, 166, 0.4);
-  background: linear-gradient(90deg, #0f766e, #0ea5a4);
-  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.28);
+  border-color: rgba(45, 212, 191, 0.42);
+  background: rgba(20, 184, 166, 0.16);
+  color: #5eead4;
+  box-shadow: none;
 }
 
 button.warn {
@@ -474,7 +467,7 @@ button.ghost {
 button.cta {
   border-color: rgba(129, 140, 248, 0.6);
   background: linear-gradient(90deg, var(--primary), var(--secondary));
-  box-shadow: 0 10px 22px rgba(99, 102, 241, 0.34);
+  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.3);
 }
 
 .row,
@@ -503,7 +496,7 @@ button.cta {
   gap: 8px;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.24);
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 23, 42, 0.26);
   color: var(--muted);
   font-size: 0.9rem;
   padding: 8px 10px;
@@ -517,10 +510,15 @@ button.cta {
 
 .social-item {
   justify-content: space-between;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: rgba(2, 6, 23, 0.5);
+  border: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 0;
+  padding: 12px 2px;
+  background: transparent;
+}
+
+#socialSection .social-item:last-of-type {
+  border-bottom: 0;
 }
 
 .social-label-wrap {
@@ -583,16 +581,16 @@ button.cta {
 .research-item,
 .plan-item,
 .schedule-item {
-  border: 1px solid rgba(148, 163, 184, 0.26);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
-  background: rgba(2, 6, 23, 0.46);
+  background: rgba(6, 11, 24, 0.46);
   padding: 12px;
   margin-top: 10px;
 }
 
 #socialSection,
 #generatorSection {
-  min-height: 330px;
+  min-height: 300px;
 }
 
 .post-title {
