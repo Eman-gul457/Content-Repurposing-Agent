@@ -26,6 +26,13 @@ class Settings:
     twitter_client_id: str = os.getenv("TWITTER_CLIENT_ID", "")
     twitter_client_secret: str = os.getenv("TWITTER_CLIENT_SECRET", "")
     twitter_redirect_uri: str = os.getenv("TWITTER_REDIRECT_URI", "")
+    whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    whatsapp_business_account_id: str = os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID", "")
+    whatsapp_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    whatsapp_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+    whatsapp_template_name: str = os.getenv("WHATSAPP_TEMPLATE_NAME", "hello_world")
+    whatsapp_template_lang: str = os.getenv("WHATSAPP_TEMPLATE_LANG", "en_US")
+    whatsapp_recipients: str = os.getenv("WHATSAPP_RECIPIENT_NUMBERS", "")
 
     state_signing_secret: str = os.getenv("STATE_SIGNING_SECRET", "")
     encryption_key: str = os.getenv("ENCRYPTION_KEY", "")

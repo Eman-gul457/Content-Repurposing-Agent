@@ -264,6 +264,27 @@ async function sendMagicLink(email) {
   }
 }
 
+async function apiPublic(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let body = {};
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { raw: text };
+  }
+  if (!res.ok) {
+    throw new Error(body.detail || body.message || `Request failed (${res.status})`);
+  }
+  return body;
+}
+
 function toLocalDateTimeInputValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -338,6 +359,7 @@ function renderDraft(post) {
       <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
       <button id="approve-${post.id}" type="button">Approve</button>
       <button id="reject-${post.id}" class="warn" type="button">Reject</button>
+      <button id="request-approval-${post.id}" class="ghost" type="button">Request WhatsApp Approval</button>
       <button id="publish-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>${isTwitter ? "Open in X" : "Publish Now"}</button>
       <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
       <button id="set-schedule-${post.id}" class="secondary" type="button" ${canSchedule ? "" : "disabled"}>Schedule</button>
@@ -414,6 +436,17 @@ function renderDraft(post) {
       await refreshAllData();
     } catch (err) {
       setFeedback(`Reject failed: ${err.message}`);
+    }
+  });
+
+  wrapper.querySelector(`#request-approval-${post.id}`).addEventListener("click", async () => {
+    try {
+      setFeedback("Sending WhatsApp approval request...");
+      const res = await api(`/api/posts/${post.id}/request-approval`, { method: "POST" });
+      setFeedback(res.message || "Approval request sent.");
+      await refreshAllData();
+    } catch (err) {
+      setFeedback(`Approval request failed: ${err.message}`);
     }
   });
 
@@ -949,6 +982,27 @@ document.addEventListener("keydown", (event) => {
 });
 
 async function bootstrap() {
+  const params = new URLSearchParams(window.location.search);
+  const waToken = params.get("wa_approval_token");
+  const waAction = params.get("wa_action");
+  if (waToken && waAction) {
+    authState.hidden = false;
+    try {
+      authState.textContent = "Applying WhatsApp approval action...";
+      const response = await apiPublic(
+        `/api/whatsapp/approval/resolve?token=${encodeURIComponent(waToken)}&action=${encodeURIComponent(waAction)}`,
+        { method: "GET" },
+      );
+      authState.textContent = response.message || "Approval status updated.";
+    } catch (err) {
+      authState.textContent = `Approval link failed: ${err.message}`;
+    }
+    params.delete("wa_approval_token");
+    params.delete("wa_action");
+    const next = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, "", next);
+  }
+
   if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
     authState.textContent = "Supabase library failed to load. Refresh and try again.";
     return;
@@ -984,7 +1038,6 @@ async function bootstrap() {
 
   await refreshAllData();
 
-  const params = new URLSearchParams(window.location.search);
   if (params.get("linkedin") === "connected") {
     statusText.textContent = "LinkedIn connected successfully.";
     await loadSocial();

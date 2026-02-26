@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from backend.ai_service import generate_platform_posts
@@ -27,6 +27,7 @@ from backend.planning_service import create_content_plans
 from backend.research_service import collect_research_items
 from backend.scheduler import create_scheduler
 from backend.twitter_service import create_twitter_authorization_url, handle_twitter_callback
+from backend.whatsapp_service import request_whatsapp_approval, resolve_whatsapp_approval, verify_webhook
 from backend.schemas import (
     AgentRunResponse,
     ContentPlanResponse,
@@ -519,6 +520,57 @@ def publish_post_now(
     db.commit()
     db.refresh(post)
     return _serialize_post(post)
+
+
+@app.post("/api/posts/{post_id}/request-approval")
+def request_post_approval(
+    post_id: int,
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> dict[str, str | int]:
+    post = db.query(GeneratedPost).filter(GeneratedPost.id == post_id, GeneratedPost.user_id == user_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    try:
+        result = request_whatsapp_approval(db=db, post=post)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"WhatsApp approval failed: {exc}") from exc
+    return {
+        "message": f"Approval request sent to {result.get('sent_to', 0)} recipient(s)",
+        "sent_to": int(result.get("sent_to", 0)),
+    }
+
+
+@app.get("/api/whatsapp/approval/resolve")
+def resolve_whatsapp_approval_link(
+    token: str = Query(..., min_length=20),
+    action: str = Query(...),
+    db: Session = Depends(get_db),
+) -> dict[str, str | int]:
+    try:
+        result = resolve_whatsapp_approval(db=db, token=token, action=action)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return result
+
+
+@app.get("/api/whatsapp/webhook")
+def whatsapp_webhook_verify(
+    mode: str | None = Query(default=None, alias="hub.mode"),
+    token: str | None = Query(default=None, alias="hub.verify_token"),
+    challenge: str | None = Query(default=None, alias="hub.challenge"),
+) -> PlainTextResponse:
+    try:
+        verified = verify_webhook(mode=mode, verify_token=token, challenge=challenge)
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return PlainTextResponse(content=verified)
+
+
+@app.post("/api/whatsapp/webhook")
+def whatsapp_webhook_events(payload: dict) -> dict[str, str]:
+    _ = payload
+    return {"status": "received"}
 
 
 @app.post("/api/posts/{post_id}/manual-publish", response_model=DraftPost)
