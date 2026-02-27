@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.ai_service import generate_platform_posts
 from backend.auth import get_current_user_id
+from backend.canva_service import create_canva_authorization_url, handle_canva_callback
 from backend.database import SessionLocal, get_db, init_db
 from backend.db_models import (
     AgentRun,
@@ -679,6 +680,11 @@ def social_accounts(
         .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "twitter")
         .first()
     )
+    canva = (
+        db.query(SocialAccount)
+        .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "canva")
+        .first()
+    )
 
     return [
         SocialAccountResponse(
@@ -690,6 +696,11 @@ def social_accounts(
             platform="twitter",
             connected=twitter is not None,
             account_name=twitter.account_name if twitter else None,
+        ),
+        SocialAccountResponse(
+            platform="canva",
+            connected=canva is not None,
+            account_name=canva.account_name if canva else None,
         ),
         SocialAccountResponse(platform="facebook", connected=False, account_name=None),
         SocialAccountResponse(platform="instagram", connected=False, account_name=None),
@@ -730,6 +741,15 @@ def instagram_connect_start(
     raise HTTPException(status_code=501, detail="Instagram credentials not configured yet")
 
 
+@app.get("/api/canva/connect/start", response_model=LinkedInConnectStartResponse)
+def canva_connect_start(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> LinkedInConnectStartResponse:
+    url = create_canva_authorization_url(db, user_id)
+    return LinkedInConnectStartResponse(authorization_url=url)
+
+
 @app.get("/api/linkedin/connect/callback")
 def linkedin_connect_callback(
     code: str | None = Query(default=None),
@@ -755,6 +775,36 @@ def linkedin_connect_callback(
         handle_linkedin_callback(db, code, state)
     except Exception as exc:
         error_url = f"{redirect_base}/index.html?linkedin=error&message={str(exc)}" if redirect_base else f"/index.html?linkedin=error&message={str(exc)}"
+        return RedirectResponse(url=error_url)
+
+    return RedirectResponse(url=success_url)
+
+
+@app.get("/api/canva/callback")
+def canva_connect_callback(
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    redirect_base = settings.frontend_url.rstrip("/") if settings.frontend_url else ""
+    success_url = f"{redirect_base}/index.html?canva=connected" if redirect_base else "/index.html?canva=connected"
+    if error:
+        description = (error_description or "").replace("+", " ")
+        message = f"Canva OAuth error: {error}. {description}".strip()
+        error_url = f"{redirect_base}/index.html?canva=error&message={message}" if redirect_base else f"/index.html?canva=error&message={message}"
+        return RedirectResponse(url=error_url)
+
+    if not code or not state:
+        message = "Canva callback missing code/state. Check app redirect URI and scopes."
+        error_url = f"{redirect_base}/index.html?canva=error&message={message}" if redirect_base else f"/index.html?canva=error&message={message}"
+        return RedirectResponse(url=error_url)
+
+    try:
+        handle_canva_callback(db, code, state)
+    except Exception as exc:
+        error_url = f"{redirect_base}/index.html?canva=error&message={str(exc)}" if redirect_base else f"/index.html?canva=error&message={str(exc)}"
         return RedirectResponse(url=error_url)
 
     return RedirectResponse(url=success_url)

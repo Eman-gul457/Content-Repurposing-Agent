@@ -82,6 +82,8 @@ const linkedinStatus = document.getElementById("linkedinStatus");
 const connectLinkedInBtn = document.getElementById("connectLinkedInBtn");
 const twitterStatus = document.getElementById("twitterStatus");
 const connectTwitterBtn = document.getElementById("connectTwitterBtn");
+const canvaStatus = document.getElementById("canvaStatus");
+const connectCanvaBtn = document.getElementById("connectCanvaBtn");
 const facebookStatus = document.getElementById("facebookStatus");
 const instagramStatus = document.getElementById("instagramStatus");
 const profileBigInitial = document.getElementById("profileBigInitial");
@@ -541,11 +543,13 @@ async function loadSocial() {
   const data = await api("/api/social-accounts");
   const linkedin = data.find((x) => x.platform === "linkedin");
   const twitter = data.find((x) => x.platform === "twitter");
+  const canva = data.find((x) => x.platform === "canva");
   const facebook = data.find((x) => x.platform === "facebook");
   const instagram = data.find((x) => x.platform === "instagram");
 
   renderStatusBadge(linkedinStatus, !!linkedin?.connected, linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected");
   renderStatusBadge(twitterStatus, !!twitter?.connected, twitter?.connected ? `Connected: ${twitter.account_name || "Twitter/X"}` : "Not connected");
+  renderStatusBadge(canvaStatus, !!canva?.connected, canva?.connected ? `Connected: ${canva.account_name || "Canva"}` : "Not connected");
   renderStatusBadge(facebookStatus, !!facebook?.connected, facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected");
   renderStatusBadge(instagramStatus, !!instagram?.connected, instagram?.connected ? `Connected: ${instagram.account_name || "Instagram"}` : "Not connected");
 }
@@ -833,6 +837,11 @@ connectTwitterBtn.addEventListener("click", async () => {
   window.location.href = data.authorization_url;
 });
 
+connectCanvaBtn.addEventListener("click", async () => {
+  const data = await api("/api/canva/connect/start", { method: "GET" });
+  window.location.href = data.authorization_url;
+});
+
 tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
 });
@@ -1054,6 +1063,15 @@ async function bootstrap() {
   }
   if (params.get("twitter") === "error") {
     statusText.textContent = `Twitter error: ${params.get("message") || "Unknown"}`;
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("canva") === "connected") {
+    statusText.textContent = "Canva connected successfully.";
+    await loadSocial();
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("canva") === "error") {
+    statusText.textContent = `Canva error: ${params.get("message") || "Unknown"}`;
     window.history.replaceState({}, "", window.location.pathname);
   }
 }
