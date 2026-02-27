@@ -618,24 +618,33 @@ async function loadPlans(limit = 30) {
         <button class="secondary" id="gen-image-${item.id}" type="button">${hasGeneratedImage ? "Regenerate Visual" : "Generate Visual"}</button>
         ${hasGeneratedImage ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Open Image</a>` : "<small>Image not generated yet.</small>"}
       </div>
+      <small id="plan-status-${item.id}" class="muted"></small>
       ${hasGeneratedImage ? `<img class="plan-preview" src="${item.image_url}" alt="Plan ${item.id} preview" />` : ""}
     `;
     plansList.appendChild(node);
 
     const btn = node.querySelector(`#gen-image-${item.id}`);
+    const planStatusNode = node.querySelector(`#plan-status-${item.id}`);
     if (btn) {
       btn.addEventListener("click", async () => {
         try {
           btn.disabled = true;
           btn.textContent = "Generating...";
+          if (planStatusNode) planStatusNode.textContent = "Generating image...";
           await api(`/api/content-plans/${item.id}/generate-image`, { method: "POST" });
           await loadPlans(limit);
           await loadDrafts();
           statusText.textContent = "Visual generated and attached to latest draft for this platform.";
         } catch (err) {
-          statusText.textContent = `Image error: ${err.message}`;
+          const msg = `Image error: ${err.message}`;
+          statusText.textContent = msg;
+          if (planStatusNode) planStatusNode.textContent = msg;
           btn.disabled = false;
           btn.textContent = "Generate Visual";
+        } finally {
+          if (planStatusNode && !planStatusNode.textContent) {
+            planStatusNode.textContent = "";
+          }
         }
       });
     }
