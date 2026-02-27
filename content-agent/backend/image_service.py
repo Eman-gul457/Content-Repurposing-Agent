@@ -641,31 +641,35 @@ def generate_plan_image(
     if image_result:
         image_bytes, mime_type = image_result
     else:
-        try:
-            image_bytes = _build_infographic_svg(
-                plan.platform,
-                plan.theme,
-                plan.post_angle,
-                visual_source,
-                business_name,
-                width,
-                height,
-                style,
-                layout,
-            )
-            mime_type = "image/svg+xml"
-        except Exception:
-            image_bytes = _fallback_post_svg(
-                plan.platform,
-                plan.theme,
-                plan.post_angle,
-                business_name,
-                width,
-                height,
-                style,
-                layout,
-            )
-            mime_type = "image/svg+xml"
+        pollinations = _download_pollinations(prompt=prompt, width=width, height=height)
+        if pollinations:
+            image_bytes, mime_type = pollinations
+        else:
+            try:
+                image_bytes = _build_infographic_svg(
+                    plan.platform,
+                    plan.theme,
+                    plan.post_angle,
+                    visual_source,
+                    business_name,
+                    width,
+                    height,
+                    style,
+                    layout,
+                )
+                mime_type = "image/svg+xml"
+            except Exception:
+                image_bytes = _fallback_post_svg(
+                    plan.platform,
+                    plan.theme,
+                    plan.post_angle,
+                    business_name,
+                    width,
+                    height,
+                    style,
+                    layout,
+                )
+                mime_type = "image/svg+xml"
 
     if mime_type not in {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}:
         image_bytes = _fallback_post_svg(
