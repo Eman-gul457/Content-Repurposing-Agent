@@ -1,5 +1,5 @@
 module.exports = async (req, res) => {
-  const backendBase = "http://34.224.212.129";
+  const backendBase = process.env.BACKEND_BASE_URL || "http://52.91.158.161";
   const rawPath = req.query.path || "";
   const path = Array.isArray(rawPath) ? rawPath.join("/") : rawPath;
   const forwardedQuery = new URLSearchParams();
