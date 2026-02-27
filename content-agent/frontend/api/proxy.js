@@ -1,5 +1,10 @@
 module.exports = async (req, res) => {
-  const backendBase = process.env.BACKEND_BASE_URL || "http://52.91.158.161";
+  const backendBases = [
+    process.env.BACKEND_BASE_URL,
+    process.env.BACKEND_FALLBACK_URL,
+    "http://ec2-52-91-158-161.compute-1.amazonaws.com",
+    "http://52.91.158.161"
+  ].filter(Boolean);
   const rawPath = req.query.path || "";
   const path = Array.isArray(rawPath) ? rawPath.join("/") : rawPath;
   const forwardedQuery = new URLSearchParams();
@@ -12,7 +17,6 @@ module.exports = async (req, res) => {
     }
   });
   const queryString = forwardedQuery.toString();
-  const target = `${backendBase}/api/${path}${queryString ? `?${queryString}` : ""}`;
 
   const headers = {};
   if (req.headers.authorization) headers.Authorization = req.headers.authorization;
@@ -30,7 +34,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const response = await fetch(target, init);
+    let response = null;
+    let lastError = null;
+    let target = "";
+
+    for (const backendBase of backendBases) {
+      target = `${backendBase}/api/${path}${queryString ? `?${queryString}` : ""}`;
+      try {
+        response = await fetch(target, init);
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error("No backend targets configured");
+    }
 
     const location = response.headers.get("location");
     if (location && [301, 302, 303, 307, 308].includes(response.status)) {
