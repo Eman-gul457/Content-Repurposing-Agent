@@ -608,6 +608,7 @@ def generate_plan_image(
     business_name: str = "",
     source_text: str = "",
     attach_post_id: int | None = None,
+    strict_ai: bool = False,
 ) -> ContentPlan:
     plan = db.query(ContentPlan).filter(ContentPlan.id == plan_id, ContentPlan.user_id == user_id).first()
     if not plan:
@@ -637,10 +638,13 @@ def generate_plan_image(
         ),
         width=width,
         height=height,
+        strict=strict_ai,
     )
     if image_result:
         image_bytes, mime_type = image_result
     else:
+        if strict_ai and (settings.gemini_api_key or "").strip():
+            raise RuntimeError("Gemini image generation failed; fallback disabled in strict mode")
         pollinations = _download_pollinations(prompt=prompt, width=width, height=height)
         if pollinations:
             image_bytes, mime_type = pollinations

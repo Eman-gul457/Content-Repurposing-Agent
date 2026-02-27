@@ -33,8 +33,10 @@ def _extract_inline_image(payload: dict[str, Any]) -> tuple[bytes, str] | None:
     return None
 
 
-def generate_image(prompt: str, width: int, height: int) -> tuple[bytes, str] | None:
+def generate_image(prompt: str, width: int, height: int, *, strict: bool = False) -> tuple[bytes, str] | None:
     if not (settings.gemini_api_key or "").strip():
+        if strict:
+            raise RuntimeError("Gemini API key missing")
         return None
 
     safe_prompt = (
@@ -52,6 +54,11 @@ def generate_image(prompt: str, width: int, height: int) -> tuple[bytes, str] | 
         timeout=90,
     )
     if response.status_code >= 400:
+        if strict:
+            raise RuntimeError(f"Gemini image generation failed: {response.status_code} {response.text[:400]}")
         return None
     data = response.json()
-    return _extract_inline_image(data)
+    result = _extract_inline_image(data)
+    if not result and strict:
+        raise RuntimeError("Gemini returned no image bytes for this request")
+    return result

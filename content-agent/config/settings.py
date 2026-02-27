@@ -47,6 +47,12 @@ class Settings:
     encryption_key: str = os.getenv("ENCRYPTION_KEY", "")
 
     timezone: str = os.getenv("APP_TIMEZONE", "Asia/Karachi")
+    auto_generate_plan_images_on_run: bool = os.getenv("AUTO_GENERATE_PLAN_IMAGES_ON_RUN", "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 settings = Settings()
