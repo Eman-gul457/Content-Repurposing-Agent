@@ -535,9 +535,15 @@ def request_post_approval(
         result = request_whatsapp_approval(db=db, post=post)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"WhatsApp approval failed: {exc}") from exc
+    sent_to = int(result.get("sent_to", 0))
+    failed_count = int(result.get("failed_count", 0))
+    message = f"Approval request sent to {sent_to} recipient(s)"
+    if failed_count > 0:
+        message += f". {failed_count} recipient(s) failed (not allowed/test-mode or temporary Meta issue)."
     return {
-        "message": f"Approval request sent to {result.get('sent_to', 0)} recipient(s)",
-        "sent_to": int(result.get("sent_to", 0)),
+        "message": message,
+        "sent_to": sent_to,
+        "failed_count": failed_count,
     }
 
 

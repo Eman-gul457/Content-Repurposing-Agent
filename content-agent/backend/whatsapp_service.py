@@ -152,10 +152,26 @@ def request_whatsapp_approval(db: Session, post: GeneratedPost) -> dict[str, Any
     )
 
     sent = 0
+    failed: list[dict[str, str]] = []
+    sent_numbers: list[str] = []
     for recipient in recipients:
-        _send_template_message(recipient)
-        _send_text_message(recipient, body)
-        sent += 1
+        try:
+            _send_template_message(recipient)
+            _send_text_message(recipient, body)
+            sent += 1
+            sent_numbers.append(recipient)
+        except Exception as exc:
+            failed.append({"recipient": recipient, "error": str(exc)})
+
+    if sent == 0:
+        hint = ""
+        if any("#131030" in item["error"] or "allowed list" in item["error"].lower() for item in failed):
+            hint = (
+                " Add recipient numbers in Meta WhatsApp test numbers "
+                "(WhatsApp -> API Setup -> To) or move app to production."
+            )
+        first_error = failed[0]["error"] if failed else "Unknown WhatsApp delivery failure"
+        raise RuntimeError(f"No approval message sent. {first_error}.{hint}")
 
     approval = (
         db.query(ApprovalRequest)
@@ -177,7 +193,14 @@ def request_whatsapp_approval(db: Session, post: GeneratedPost) -> dict[str, Any
         approval.resolution_note = ""
     db.commit()
 
-    return {"sent_to": sent, "approve_url": approve_url, "reject_url": reject_url}
+    return {
+        "sent_to": sent,
+        "sent_numbers": sent_numbers,
+        "failed_count": len(failed),
+        "failed": failed,
+        "approve_url": approve_url,
+        "reject_url": reject_url,
+    }
 
 
 def resolve_whatsapp_approval(db: Session, token: str, action: str) -> dict[str, Any]:
