@@ -11,7 +11,8 @@ from urllib.parse import quote
 import requests
 from sqlalchemy.orm import Session
 
-from backend.db_models import ContentPlan
+from backend.db_models import ContentPlan, GeneratedPost, MediaAsset
+from backend.gemini_service import generate_image as generate_image_with_gemini
 from config.settings import settings
 
 DEFAULT_IMAGE_SIZE = (1080, 1080)
@@ -81,6 +82,13 @@ STYLE_PRESETS = [
     },
 ]
 LAYOUT_VARIANTS = ("classic", "split", "spotlight")
+CANVA_TEMPLATE_FAMILIES = (
+    "canva-corporate-minimal",
+    "canva-bold-promo",
+    "canva-split-insight",
+    "canva-clean-modern",
+    "canva-data-infographic",
+)
 NEGATIVE_HINTS = {"constraint", "problem", "weak", "linear", "hunting", "slow", "bottleneck"}
 POSITIVE_HINTS = {
     "approved",
@@ -169,6 +177,35 @@ def _pick_style(seed: str) -> dict[str, str]:
 def _pick_layout(seed: str) -> str:
     h = int(hashlib.sha256(seed.encode("utf-8")).hexdigest(), 16)
     return LAYOUT_VARIANTS[h % len(LAYOUT_VARIANTS)]
+
+
+def _pick_template_family(seed: str) -> str:
+    h = int(hashlib.sha256(seed.encode("utf-8")).hexdigest(), 16)
+    return CANVA_TEMPLATE_FAMILIES[h % len(CANVA_TEMPLATE_FAMILIES)]
+
+
+def _build_gemini_visual_prompt(
+    *,
+    platform: str,
+    theme: str,
+    angle: str,
+    image_prompt: str,
+    business_name: str,
+    template_family: str,
+    width: int,
+    height: int,
+) -> str:
+    return (
+        "Create a premium social media visual that looks like a polished Canva free template composition.\n"
+        f"Platform: {platform.upper()}\n"
+        f"Template family: {template_family}\n"
+        f"Theme: {theme}\n"
+        f"Message angle: {angle}\n"
+        f"Brand: {business_name or 'AI Content SaaS'}\n"
+        f"Creative direction: {image_prompt}\n"
+        f"Aspect target: {width}x{height}\n"
+        "Constraints: clean typography, balanced spacing, modern corporate style, avoid watermarks, no logos of other brands."
+    )
 
 
 def _wrap_text(value: str, max_len: int, max_lines: int) -> list[str]:
@@ -570,6 +607,7 @@ def generate_plan_image(
     plan_id: int,
     business_name: str = "",
     source_text: str = "",
+    attach_post_id: int | None = None,
 ) -> ContentPlan:
     plan = db.query(ContentPlan).filter(ContentPlan.id == plan_id, ContentPlan.user_id == user_id).first()
     if not plan:
@@ -580,25 +618,56 @@ def generate_plan_image(
     seed = f"{plan.id}:{plan.platform}:{plan.theme}:{plan.post_angle}"
     style = _pick_style(seed)
     layout = _pick_layout(seed)
+    template_family = _pick_template_family(seed)
     visual_source = "\n".join(
         x.strip()
         for x in [source_text, plan.theme, plan.post_angle, prompt]
         if (x or "").strip()
     )
-    try:
-        image_bytes = _build_infographic_svg(
-            plan.platform,
-            plan.theme,
-            plan.post_angle,
-            visual_source,
-            business_name,
-            width,
-            height,
-            style,
-            layout,
-        )
-        mime_type = "image/svg+xml"
-    except Exception:
+    image_result = generate_image_with_gemini(
+        _build_gemini_visual_prompt(
+            platform=plan.platform,
+            theme=plan.theme,
+            angle=plan.post_angle,
+            image_prompt=prompt,
+            business_name=business_name,
+            template_family=template_family,
+            width=width,
+            height=height,
+        ),
+        width=width,
+        height=height,
+    )
+    if image_result:
+        image_bytes, mime_type = image_result
+    else:
+        try:
+            image_bytes = _build_infographic_svg(
+                plan.platform,
+                plan.theme,
+                plan.post_angle,
+                visual_source,
+                business_name,
+                width,
+                height,
+                style,
+                layout,
+            )
+            mime_type = "image/svg+xml"
+        except Exception:
+            image_bytes = _fallback_post_svg(
+                plan.platform,
+                plan.theme,
+                plan.post_angle,
+                business_name,
+                width,
+                height,
+                style,
+                layout,
+            )
+            mime_type = "image/svg+xml"
+
+    if mime_type not in {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}:
         image_bytes = _fallback_post_svg(
             plan.platform,
             plan.theme,
@@ -627,6 +696,30 @@ def generate_plan_image(
 
     plan.image_url = _generate_signed_url(storage_path)
     plan.updated_at = datetime.utcnow()
+
+    if attach_post_id and mime_type in {"image/png", "image/jpeg"}:
+        post = (
+            db.query(GeneratedPost)
+            .filter(GeneratedPost.id == attach_post_id, GeneratedPost.user_id == user_id)
+            .first()
+        )
+        if post:
+            auto_name = Path(file_name).name
+            db.add(
+                MediaAsset(
+                    user_id=user_id,
+                    post_id=post.id,
+                    platform=post.platform,
+                    file_name=auto_name,
+                    mime_type=mime_type,
+                    file_size=len(image_bytes),
+                    storage_path=storage_path,
+                    file_url=plan.image_url,
+                    upload_status="uploaded",
+                    last_error="",
+                )
+            )
+
     db.commit()
     db.refresh(plan)
     return plan

@@ -279,6 +279,30 @@ def _run_agent_workflow(
             _touch_publish_job(db, row, status="draft")
         db.commit()
 
+        # Auto-generate one visual per platform and attach it to the matching draft when possible.
+        posts_by_platform: dict[str, GeneratedPost] = {}
+        for row in created_posts:
+            posts_by_platform.setdefault(row.platform, row)
+        plans_by_platform: dict[str, ContentPlan] = {}
+        for plan in plans:
+            plans_by_platform.setdefault(plan.platform, plan)
+        for platform, post in posts_by_platform.items():
+            plan = plans_by_platform.get(platform)
+            if not plan:
+                continue
+            try:
+                generate_plan_image(
+                    db=db,
+                    user_id=user_id,
+                    plan_id=plan.id,
+                    business_name=payload.business_name,
+                    source_text=content,
+                    attach_post_id=post.id,
+                )
+            except Exception:
+                # Do not fail draft creation if visual generation has a provider/runtime issue.
+                continue
+
         run.status = "completed"
         run.completed_at = datetime.utcnow()
         run.error_text = ""
@@ -502,6 +526,8 @@ def publish_post_now(
 
     try:
         media = list_post_media(db, user_id, post.id)
+        if post.platform == "linkedin" and not media:
+            raise RuntimeError("Attach or generate at least one image before LinkedIn publish")
         refresh_media_signed_urls(db, media)
         result = publish_to_linkedin(db, user_id, content, media_items=media)
         post.status = PostStatus.posted.value
