@@ -630,6 +630,8 @@ async function loadPlans(limit = 30) {
           btn.textContent = "Generating...";
           await api(`/api/content-plans/${item.id}/generate-image`, { method: "POST" });
           await loadPlans(limit);
+          await loadDrafts();
+          statusText.textContent = "Visual generated and attached to latest draft for this platform.";
         } catch (err) {
           statusText.textContent = `Image error: ${err.message}`;
           btn.disabled = false;

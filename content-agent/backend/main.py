@@ -401,6 +401,16 @@ def generate_content_plan_image(
     run = db.query(AgentRun).filter(AgentRun.id == plan.run_id, AgentRun.user_id == user_id).first()
     business_name = run.business_name if run else ""
     source_text = run.source_content if run else ""
+    draft_for_platform = (
+        db.query(GeneratedPost)
+        .filter(
+            GeneratedPost.user_id == user_id,
+            GeneratedPost.platform == plan.platform,
+            GeneratedPost.status != PostStatus.posted.value,
+        )
+        .order_by(GeneratedPost.created_at.desc())
+        .first()
+    )
     try:
         updated = generate_plan_image(
             db=db,
@@ -408,6 +418,7 @@ def generate_content_plan_image(
             plan_id=plan_id,
             business_name=business_name,
             source_text=source_text,
+            attach_post_id=draft_for_platform.id if draft_for_platform else None,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Image generation failed: {exc}") from exc
