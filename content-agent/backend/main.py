@@ -757,7 +757,10 @@ def facebook_connect_start(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> LinkedInConnectStartResponse:
-    connect_facebook_from_settings(db, user_id)
+    try:
+        connect_facebook_from_settings(db, user_id)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Facebook connect failed: {exc}") from exc
     redirect_base = settings.frontend_url.rstrip("/") if settings.frontend_url else ""
     success_url = f"{redirect_base}/index.html?facebook=connected" if redirect_base else "/index.html?facebook=connected"
     return LinkedInConnectStartResponse(authorization_url=success_url)

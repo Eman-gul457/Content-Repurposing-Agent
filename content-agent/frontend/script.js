@@ -846,23 +846,43 @@ historyStatusFilter.addEventListener("change", loadHistory);
 historyDateFilter.addEventListener("change", loadHistory);
 
 connectLinkedInBtn.addEventListener("click", async () => {
-  const data = await api("/api/linkedin/connect/start", { method: "GET" });
-  window.location.href = data.authorization_url;
+  try {
+    statusText.textContent = "Opening LinkedIn connect...";
+    const data = await api("/api/linkedin/connect/start", { method: "GET" });
+    window.location.href = data.authorization_url;
+  } catch (err) {
+    statusText.textContent = `LinkedIn connect failed: ${err.message}`;
+  }
 });
 
 connectTwitterBtn.addEventListener("click", async () => {
-  const data = await api("/api/twitter/connect/start", { method: "GET" });
-  window.location.href = data.authorization_url;
+  try {
+    statusText.textContent = "Opening Twitter connect...";
+    const data = await api("/api/twitter/connect/start", { method: "GET" });
+    window.location.href = data.authorization_url;
+  } catch (err) {
+    statusText.textContent = `Twitter connect failed: ${err.message}`;
+  }
 });
 
 connectCanvaBtn.addEventListener("click", async () => {
-  const data = await api("/api/canva/connect/start", { method: "GET" });
-  window.location.href = data.authorization_url;
+  try {
+    statusText.textContent = "Opening Canva connect...";
+    const data = await api("/api/canva/connect/start", { method: "GET" });
+    window.location.href = data.authorization_url;
+  } catch (err) {
+    statusText.textContent = `Canva connect failed: ${err.message}`;
+  }
 });
 
 connectFacebookBtn.addEventListener("click", async () => {
-  const data = await api("/api/facebook/connect/start", { method: "GET" });
-  window.location.href = data.authorization_url;
+  try {
+    statusText.textContent = "Connecting Facebook...";
+    const data = await api("/api/facebook/connect/start", { method: "GET" });
+    window.location.href = data.authorization_url;
+  } catch (err) {
+    statusText.textContent = `Facebook connect failed: ${err.message}`;
+  }
 });
 
 tabButtons.forEach((btn) => {
