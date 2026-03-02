@@ -22,6 +22,7 @@ from backend.db_models import (
     SocialAccount,
 )
 from backend.linkedin_service import create_linkedin_authorization_url, handle_linkedin_callback, publish_to_linkedin
+from backend.facebook_service import connect_facebook_from_settings, publish_to_facebook
 from backend.image_service import generate_plan_image
 from backend.media_service import list_post_media, refresh_media_signed_urls, upload_media_base64
 from backend.planning_service import create_content_plans
@@ -202,7 +203,7 @@ def _run_agent_workflow(
     if not content:
         raise HTTPException(status_code=400, detail="Content cannot be empty")
 
-    platforms = payload.platforms or ["linkedin", "twitter", "facebook", "instagram", "blog_summary"]
+    platforms = payload.platforms or ["linkedin", "twitter", "facebook", "blog_summary"]
     profile_context = (
         f"Business={payload.business_name}; Niche={payload.niche}; Audience={payload.audience}; "
         f"Tone={payload.tone}; Region={payload.region}; Platforms={','.join(platforms)}"
@@ -352,7 +353,7 @@ def get_drafts(
 ) -> HistoryResponse:
     rows = (
         db.query(GeneratedPost)
-        .filter(GeneratedPost.user_id == user_id)
+        .filter(GeneratedPost.user_id == user_id, GeneratedPost.platform != "instagram")
         .order_by(GeneratedPost.created_at.desc())
         .all()
     )
@@ -382,7 +383,7 @@ def get_content_plans(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ) -> list[ContentPlanResponse]:
-    q = db.query(ContentPlan).filter(ContentPlan.user_id == user_id)
+    q = db.query(ContentPlan).filter(ContentPlan.user_id == user_id, ContentPlan.platform != "instagram")
     if run_id:
         q = q.filter(ContentPlan.run_id == run_id)
     rows = q.order_by(ContentPlan.created_at.desc()).limit(limit).all()
@@ -517,8 +518,8 @@ def publish_post_now(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    if post.platform not in ["linkedin", "twitter"]:
-        raise HTTPException(status_code=400, detail="Publishing is currently enabled for LinkedIn and Twitter only")
+    if post.platform not in ["linkedin", "twitter", "facebook"]:
+        raise HTTPException(status_code=400, detail="Publishing is currently enabled for LinkedIn, Twitter, and Facebook only")
 
     if post.status not in [PostStatus.approved.value, PostStatus.scheduled.value, PostStatus.failed.value]:
         raise HTTPException(status_code=400, detail="Post must be approved or scheduled before publishing")
@@ -543,7 +544,12 @@ def publish_post_now(
         if post.platform == "linkedin" and not media:
             raise RuntimeError("Attach or generate at least one image before LinkedIn publish")
         refresh_media_signed_urls(db, media)
-        result = publish_to_linkedin(db, user_id, content, media_items=media)
+        if post.platform == "linkedin":
+            result = publish_to_linkedin(db, user_id, content, media_items=media)
+        elif post.platform == "facebook":
+            result = publish_to_facebook(db, user_id, content, media_items=media)
+        else:
+            raise RuntimeError("Unsupported automatic publish platform")
         post.status = PostStatus.posted.value
         post.posted_at = datetime.utcnow()
         post.external_post_id = result.get("external_post_id", "")
@@ -698,6 +704,11 @@ def social_accounts(
         .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "canva")
         .first()
     )
+    facebook = (
+        db.query(SocialAccount)
+        .filter(SocialAccount.user_id == user_id, SocialAccount.platform == "facebook")
+        .first()
+    )
 
     return [
         SocialAccountResponse(
@@ -715,8 +726,11 @@ def social_accounts(
             connected=canva is not None,
             account_name=canva.account_name if canva else None,
         ),
-        SocialAccountResponse(platform="facebook", connected=False, account_name=None),
-        SocialAccountResponse(platform="instagram", connected=False, account_name=None),
+        SocialAccountResponse(
+            platform="facebook",
+            connected=facebook is not None,
+            account_name=facebook.account_name if facebook else None,
+        ),
     ]
 
 
@@ -741,17 +755,12 @@ def twitter_connect_start(
 @app.get("/api/facebook/connect/start", response_model=LinkedInConnectStartResponse)
 def facebook_connect_start(
     user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
 ) -> LinkedInConnectStartResponse:
-    _ = user_id
-    raise HTTPException(status_code=501, detail="Facebook credentials not configured yet")
-
-
-@app.get("/api/instagram/connect/start", response_model=LinkedInConnectStartResponse)
-def instagram_connect_start(
-    user_id: str = Depends(get_current_user_id),
-) -> LinkedInConnectStartResponse:
-    _ = user_id
-    raise HTTPException(status_code=501, detail="Instagram credentials not configured yet")
+    connect_facebook_from_settings(db, user_id)
+    redirect_base = settings.frontend_url.rstrip("/") if settings.frontend_url else ""
+    success_url = f"{redirect_base}/index.html?facebook=connected" if redirect_base else "/index.html?facebook=connected"
+    return LinkedInConnectStartResponse(authorization_url=success_url)
 
 
 @app.get("/api/canva/connect/start", response_model=LinkedInConnectStartResponse)

@@ -135,16 +135,9 @@
                 <strong>Facebook</strong>
                 <span id="facebookStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
               </div>
-              <button id="connectFacebookBtn" class="ghost" disabled type="button">Connect Facebook</button>
+              <button id="connectFacebookBtn" class="secondary" type="button">Connect Facebook</button>
             </div>
-            <div class="social-item">
-              <div class="social-label-wrap">
-                <strong>Instagram</strong>
-                <span id="instagramStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
-              </div>
-              <button id="connectInstagramBtn" class="ghost" disabled type="button">Connect Instagram</button>
-            </div>
-            <p class="muted">Twitter is available in free manual mode. Canva is used for template workflow. Facebook/Instagram are ready for credentials later.</p>
+            <p class="muted">Twitter is available in free manual mode. Canva powers template workflow. Facebook posting is enabled via your configured page token.</p>
           </section>
 
           <section class="card fade-in-up" id="generatorSection" hidden>
@@ -165,7 +158,6 @@
               <label><input type="checkbox" name="platform" value="linkedin" checked /> LinkedIn</label>
               <label><input type="checkbox" name="platform" value="twitter" checked /> Twitter/X</label>
               <label><input type="checkbox" name="platform" value="facebook" checked /> Facebook</label>
-              <label><input type="checkbox" name="platform" value="instagram" checked /> Instagram</label>
               <label><input type="checkbox" name="platform" value="blog_summary" checked /> Blog Summary</label>
             </div>
             <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
@@ -198,7 +190,6 @@
               <option value="linkedin">LinkedIn</option>
               <option value="twitter">Twitter/X</option>
               <option value="facebook">Facebook</option>
-              <option value="instagram">Instagram</option>
               <option value="blog_summary">Blog Summary</option>
             </select>
             <select id="historyStatusFilter">

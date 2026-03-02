@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
 from backend.db_models import GeneratedPost, PostStatus, PublishJob
+from backend.facebook_service import publish_to_facebook
 from backend.media_service import list_post_media, refresh_media_signed_urls
 from backend.linkedin_service import publish_to_linkedin
 
@@ -41,6 +42,10 @@ def process_scheduled_posts(db: Session) -> None:
                 media = list_post_media(db, post.user_id, post.id)
                 refresh_media_signed_urls(db, media)
                 result = publish_to_linkedin(db, post.user_id, content, media_items=media)
+            elif post.platform == "facebook":
+                media = list_post_media(db, post.user_id, post.id)
+                refresh_media_signed_urls(db, media)
+                result = publish_to_facebook(db, post.user_id, content, media_items=media)
             elif post.platform == "twitter":
                 post.status = PostStatus.failed.value
                 post.last_error = "Twitter free mode does not support automatic scheduling/publishing."

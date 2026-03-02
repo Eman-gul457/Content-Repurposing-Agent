@@ -21,7 +21,6 @@ PLATFORM_DIMENSIONS = {
     "linkedin": (1200, 627),
     "twitter": (1600, 900),
     "facebook": (1200, 628),
-    "instagram": (1080, 1350),
     "blog_summary": (1080, 1080),
 }
 STYLE_PRESETS = [

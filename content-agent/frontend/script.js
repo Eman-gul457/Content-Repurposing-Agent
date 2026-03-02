@@ -85,7 +85,7 @@ const connectTwitterBtn = document.getElementById("connectTwitterBtn");
 const canvaStatus = document.getElementById("canvaStatus");
 const connectCanvaBtn = document.getElementById("connectCanvaBtn");
 const facebookStatus = document.getElementById("facebookStatus");
-const instagramStatus = document.getElementById("instagramStatus");
+const connectFacebookBtn = document.getElementById("connectFacebookBtn");
 const profileBigInitial = document.getElementById("profileBigInitial");
 const profileDisplayName = document.getElementById("profileDisplayName");
 const profileDisplayEmail = document.getElementById("profileDisplayEmail");
@@ -122,6 +122,7 @@ function refreshIcons() {
 }
 
 function renderStatusBadge(node, connected, label) {
+  if (!node) return;
   node.className = `status-badge ${connected ? "connected" : "disconnected"}`;
   node.innerHTML = `<span class="dot"></span>${escapeHtml(label)}`;
 }
@@ -346,10 +347,11 @@ function buildHistoryRows(posts) {
 function renderDraft(post) {
   const isLinkedIn = post.platform === "linkedin";
   const isTwitter = post.platform === "twitter";
-  const canPublish = isLinkedIn || isTwitter;
-  const canSchedule = isLinkedIn;
-  const canAttachMedia = isLinkedIn || isTwitter;
-  const mediaAccept = isTwitter ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
+  const isFacebook = post.platform === "facebook";
+  const canPublish = isLinkedIn || isTwitter || isFacebook;
+  const canSchedule = isLinkedIn || isFacebook;
+  const canAttachMedia = isLinkedIn || isTwitter || isFacebook;
+  const mediaAccept = (isTwitter || isFacebook) ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
 
   const wrapper = document.createElement("div");
   wrapper.className = "post-card";
@@ -371,7 +373,7 @@ function renderDraft(post) {
       <button id="upload-${post.id}" class="secondary" type="button" ${canAttachMedia ? "" : "disabled"}>Attach Media</button>
     </div>
     <div class="post-meta" id="media-${post.id}"></div>
-    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is only enabled for LinkedIn and Twitter." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
+    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is enabled for LinkedIn, Twitter, and Facebook." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
     <div class="post-meta">${post.last_error ? `Error: ${escapeHtml(post.last_error)}` : ""}</div>
   `;
 
@@ -468,6 +470,13 @@ function renderDraft(post) {
           body: JSON.stringify({ confirm: true }),
         });
         setFeedback("Opened X composer.");
+      } else if (isFacebook) {
+        setFeedback("Publishing to Facebook...");
+        await api(`/api/posts/${post.id}/publish`, {
+          method: "POST",
+          body: JSON.stringify({ confirm: true }),
+        });
+        setFeedback("Published successfully.");
       } else {
         setFeedback("Publishing to LinkedIn...");
         await api(`/api/posts/${post.id}/publish`, {
@@ -507,7 +516,7 @@ function renderDraft(post) {
     const input = wrapper.querySelector(`#file-${post.id}`);
     const file = input.files?.[0];
     if (!file) {
-      setFeedback(isTwitter ? "Choose PNG/JPG/WEBP image first." : "Choose PNG/JPG/PDF first.");
+      setFeedback((isTwitter || isFacebook) ? "Choose PNG/JPG/WEBP image first." : "Choose PNG/JPG/PDF first.");
       return;
     }
     try {
@@ -545,13 +554,11 @@ async function loadSocial() {
   const twitter = data.find((x) => x.platform === "twitter");
   const canva = data.find((x) => x.platform === "canva");
   const facebook = data.find((x) => x.platform === "facebook");
-  const instagram = data.find((x) => x.platform === "instagram");
 
   renderStatusBadge(linkedinStatus, !!linkedin?.connected, linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected");
   renderStatusBadge(twitterStatus, !!twitter?.connected, twitter?.connected ? `Connected: ${twitter.account_name || "Twitter/X"}` : "Not connected");
   renderStatusBadge(canvaStatus, !!canva?.connected, canva?.connected ? `Connected: ${canva.account_name || "Canva"}` : "Not connected");
   renderStatusBadge(facebookStatus, !!facebook?.connected, facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected");
-  renderStatusBadge(instagramStatus, !!instagram?.connected, instagram?.connected ? `Connected: ${instagram.account_name || "Instagram"}` : "Not connected");
 }
 
 async function loadResearch(limit = 20) {
@@ -853,6 +860,11 @@ connectCanvaBtn.addEventListener("click", async () => {
   window.location.href = data.authorization_url;
 });
 
+connectFacebookBtn.addEventListener("click", async () => {
+  const data = await api("/api/facebook/connect/start", { method: "GET" });
+  window.location.href = data.authorization_url;
+});
+
 tabButtons.forEach((btn) => {
   btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
 });
@@ -1083,6 +1095,15 @@ async function bootstrap() {
   }
   if (params.get("canva") === "error") {
     statusText.textContent = `Canva error: ${params.get("message") || "Unknown"}`;
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("facebook") === "connected") {
+    statusText.textContent = "Facebook connected successfully.";
+    await loadSocial();
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+  if (params.get("facebook") === "error") {
+    statusText.textContent = `Facebook error: ${params.get("message") || "Unknown"}`;
     window.history.replaceState({}, "", window.location.pathname);
   }
 }

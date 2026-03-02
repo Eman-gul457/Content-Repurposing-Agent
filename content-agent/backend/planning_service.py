@@ -14,7 +14,6 @@ PLATFORM_TIMES = {
     "linkedin": (10, 30),
     "twitter": (13, 0),
     "facebook": (20, 0),
-    "instagram": (18, 0),
     "blog_summary": (11, 0),
 }
 ANGLE_TEMPLATES = [
@@ -28,7 +27,6 @@ PLATFORM_STYLE_HINT = {
     "linkedin": "thought leadership visual, professional and clean",
     "twitter": "bold social card, high contrast and concise text",
     "facebook": "friendly community-style graphic, warm and clear",
-    "instagram": "modern portrait social design, premium and vibrant",
     "blog_summary": "editorial summary card, minimal and readable",
 }
 
