@@ -2,8 +2,8 @@ module.exports = async (req, res) => {
   const backendBases = [
     process.env.BACKEND_BASE_URL,
     process.env.BACKEND_FALLBACK_URL,
-    "http://ec2-52-91-158-161.compute-1.amazonaws.com",
-    "http://52.91.158.161"
+    "http://ec2-3-95-38-128.compute-1.amazonaws.com:8000",
+    "http://3.95.38.128:8000"
   ].filter(Boolean);
   const rawPath = req.query.path || "";
   const path = Array.isArray(rawPath) ? rawPath.join("/") : rawPath;
