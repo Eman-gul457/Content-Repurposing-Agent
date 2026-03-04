@@ -3,8 +3,10 @@ from datetime import datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 
-from backend.db_models import GeneratedPost, PostStatus, PublishJob
+from backend.analytics_service import record_publish_metric
+from backend.db_models import ClientProfile, GeneratedPost, PostClientLink, PostStatus, PublishJob
 from backend.facebook_service import publish_to_facebook
+from backend.instagram_service import publish_to_instagram
 from backend.media_service import list_post_media, refresh_media_signed_urls
 from backend.linkedin_service import publish_to_linkedin
 
@@ -27,6 +29,24 @@ def _touch_job(db: Session, post: GeneratedPost, status: str, error: str = "") -
     row.error_message = error
 
 
+def _is_service_paused_for_post(db: Session, post: GeneratedPost) -> bool:
+    link = (
+        db.query(PostClientLink)
+        .filter(PostClientLink.user_id == post.user_id, PostClientLink.post_id == post.id)
+        .first()
+    )
+    if not link:
+        return False
+    client = (
+        db.query(ClientProfile)
+        .filter(ClientProfile.id == link.client_id, ClientProfile.user_id == post.user_id)
+        .first()
+    )
+    if not client:
+        return False
+    return bool(client.service_paused)
+
+
 def process_scheduled_posts(db: Session) -> None:
     now = datetime.utcnow()
     posts = (
@@ -37,6 +57,13 @@ def process_scheduled_posts(db: Session) -> None:
 
     for post in posts:
         try:
+            if _is_service_paused_for_post(db, post):
+                post.status = PostStatus.failed.value
+                post.last_error = "Service paused for this client due to unpaid subscription."
+                _touch_job(db, post, "failed", post.last_error)
+                db.commit()
+                continue
+
             content = post.edited_text.strip() if post.edited_text.strip() else post.generated_text
             if post.platform == "linkedin":
                 media = list_post_media(db, post.user_id, post.id)
@@ -46,6 +73,10 @@ def process_scheduled_posts(db: Session) -> None:
                 media = list_post_media(db, post.user_id, post.id)
                 refresh_media_signed_urls(db, media)
                 result = publish_to_facebook(db, post.user_id, content, media_items=media)
+            elif post.platform == "instagram":
+                media = list_post_media(db, post.user_id, post.id)
+                refresh_media_signed_urls(db, media)
+                result = publish_to_instagram(db, post.user_id, content, media_items=media)
             elif post.platform == "twitter":
                 post.status = PostStatus.failed.value
                 post.last_error = "Twitter free mode does not support automatic scheduling/publishing."
@@ -63,6 +94,13 @@ def process_scheduled_posts(db: Session) -> None:
             post.external_post_id = result.get("external_post_id", "")
             post.last_error = ""
             _touch_job(db, post, "posted", "")
+            record_publish_metric(
+                db,
+                user_id=post.user_id,
+                post_id=post.id,
+                platform=post.platform,
+                posted_at=now,
+            )
             db.commit()
         except Exception as exc:
             post.status = PostStatus.failed.value

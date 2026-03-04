@@ -1,110 +1,99 @@
 const { API_BASE_URL, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } = window.APP_CONFIG;
 const supabaseLib = window.supabase;
-let sbClient = null;
-let currentSession = null;
-let isAuthenticated = false;
-
-const googleLoginBtn = document.getElementById("googleLoginBtn");
-const githubLoginBtn = document.getElementById("githubLoginBtn");
-const emailLoginTopBtn = document.getElementById("emailLoginTopBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const connectAccountsBtn = document.getElementById("connectAccountsBtn");
-const topRunBtn = document.getElementById("topRunBtn");
-const authState = document.getElementById("authState");
-const tabNav = document.getElementById("tabNav");
-const appSidebar = document.getElementById("appSidebar");
-const sidebarToggle = document.getElementById("sidebarToggle");
-const userChip = document.getElementById("userChip");
-const userInitial = document.getElementById("userInitial");
-const profileMenu = document.getElementById("profileMenu");
-const profileMenuInitial = document.getElementById("profileMenuInitial");
-const profileMenuEmail = document.getElementById("profileMenuEmail");
-const profileMenuUserId = document.getElementById("profileMenuUserId");
-const profileDashboardBtn = document.getElementById("profileDashboardBtn");
-const profileDraftsBtn = document.getElementById("profileDraftsBtn");
-const profileProfileBtn = document.getElementById("profileProfileBtn");
-const profileSettingsBtn = document.getElementById("profileSettingsBtn");
-const profileLogoutBtn = document.getElementById("profileLogoutBtn");
-const topSettingsBtn = document.getElementById("topSettingsBtn");
-
-const socialSection = document.getElementById("socialSection");
-const generatorSection = document.getElementById("generatorSection");
-const recentPlansSection = document.getElementById("recentPlansSection");
-const researchSection = document.getElementById("researchSection");
-const plansSection = document.getElementById("plansSection");
-const draftsSection = document.getElementById("draftsSection");
-const historySection = document.getElementById("historySection");
-const schedulesSection = document.getElementById("schedulesSection");
-const profileSection = document.getElementById("profileSection");
-const profileDetailsSection = document.getElementById("profileDetailsSection");
-const securitySection = document.getElementById("securitySection");
-const settingsSection = document.getElementById("settingsSection");
-const publicLanding = document.getElementById("publicLanding");
-
-const tabButtons = Array.from(document.querySelectorAll(".tab-btn"));
-const pageViews = {
-  dashboard: document.getElementById("page-dashboard"),
-  drafts: document.getElementById("page-drafts"),
-  history: document.getElementById("page-history"),
-  schedules: document.getElementById("page-schedules"),
-  research: document.getElementById("page-research"),
-  profile: document.getElementById("page-profile"),
-  settings: document.getElementById("page-settings"),
+const state = {
+  sbClient: null,
+  session: null,
+  authed: false,
+  activePage: "dashboard",
+  clients: [],
+  drafts: [],
+  templates: [],
+  payments: [],
+  analyticsChart: null,
 };
 
-const contentInput = document.getElementById("contentInput");
-const landingGoogleBtn = document.getElementById("landingGoogleBtn");
-const landingGithubBtn = document.getElementById("landingGithubBtn");
-const emailLoginInput = document.getElementById("emailLoginInput");
-const emailLoginBtn = document.getElementById("emailLoginBtn");
-const businessNameInput = document.getElementById("businessNameInput");
-const nicheInput = document.getElementById("nicheInput");
-const audienceInput = document.getElementById("audienceInput");
-const toneInput = document.getElementById("toneInput");
-const regionInput = document.getElementById("regionInput");
-const languagePrefInput = document.getElementById("languagePrefInput");
-const generateBtn = document.getElementById("generateBtn");
-const statusText = document.getElementById("statusText");
-
-const researchList = document.getElementById("researchList");
-const plansList = document.getElementById("plansList");
-const recentPlansList = document.getElementById("recentPlansList");
-const draftsList = document.getElementById("draftsList");
-const historyList = document.getElementById("historyList");
-const schedulesList = document.getElementById("schedulesList");
-
-const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
-const historyPlatformFilter = document.getElementById("historyPlatformFilter");
-const historyStatusFilter = document.getElementById("historyStatusFilter");
-const historyDateFilter = document.getElementById("historyDateFilter");
-
-const linkedinStatus = document.getElementById("linkedinStatus");
-const connectLinkedInBtn = document.getElementById("connectLinkedInBtn");
-const twitterStatus = document.getElementById("twitterStatus");
-const connectTwitterBtn = document.getElementById("connectTwitterBtn");
-const canvaStatus = document.getElementById("canvaStatus");
-const connectCanvaBtn = document.getElementById("connectCanvaBtn");
-const facebookStatus = document.getElementById("facebookStatus");
-const connectFacebookBtn = document.getElementById("connectFacebookBtn");
-const profileBigInitial = document.getElementById("profileBigInitial");
-const profileDisplayName = document.getElementById("profileDisplayName");
-const profileDisplayEmail = document.getElementById("profileDisplayEmail");
-const profileFullNameInput = document.getElementById("profileFullNameInput");
-const profileCompanyInput = document.getElementById("profileCompanyInput");
-const profileRoleInput = document.getElementById("profileRoleInput");
-const profileLocationInput = document.getElementById("profileLocationInput");
-const profileWebsiteInput = document.getElementById("profileWebsiteInput");
-const profileTimezoneInput = document.getElementById("profileTimezoneInput");
-const profileBioInput = document.getElementById("profileBioInput");
-const settingsTimezoneMirror = document.getElementById("settingsTimezoneMirror");
-const saveProfileBtn = document.getElementById("saveProfileBtn");
-const profileStatusText = document.getElementById("profileStatusText");
-const newPasswordInput = document.getElementById("newPasswordInput");
-const confirmPasswordInput = document.getElementById("confirmPasswordInput");
-const changePasswordBtn = document.getElementById("changePasswordBtn");
-const sendResetEmailBtn = document.getElementById("sendResetEmailBtn");
-const securityStatusText = document.getElementById("securityStatusText");
-let profileMenuOpen = false;
+const refs = {
+  body: document.body,
+  authBanner: document.getElementById("authBanner"),
+  loginSection: document.getElementById("loginSection"),
+  sidebar: document.getElementById("sidebar"),
+  mobileMenuBtn: document.getElementById("mobileMenuBtn"),
+  globalSearchInput: document.getElementById("globalSearchInput"),
+  navButtons: Array.from(document.querySelectorAll(".nav-btn")),
+  pages: {
+    dashboard: document.getElementById("page-dashboard"),
+    clients: document.getElementById("page-clients"),
+    calendar: document.getElementById("page-calendar"),
+    generator: document.getElementById("page-generator"),
+    analytics: document.getElementById("page-analytics"),
+    payments: document.getElementById("page-payments"),
+    settings: document.getElementById("page-settings"),
+  },
+  notifyCount: document.getElementById("notifyCount"),
+  profileBtn: document.getElementById("profileBtn"),
+  logoutBtn: document.getElementById("logoutBtn"),
+  googleLoginBtn: document.getElementById("googleLoginBtn"),
+  githubLoginBtn: document.getElementById("githubLoginBtn"),
+  emailLoginBtn: document.getElementById("emailLoginBtn"),
+  loginGoogleMainBtn: document.getElementById("loginGoogleMainBtn"),
+  loginGithubMainBtn: document.getElementById("loginGithubMainBtn"),
+  magicEmailInput: document.getElementById("magicEmailInput"),
+  magicLinkSendBtn: document.getElementById("magicLinkSendBtn"),
+  statClients: document.getElementById("statClients"),
+  statScheduled: document.getElementById("statScheduled"),
+  statEngagement: document.getElementById("statEngagement"),
+  statRevenue: document.getElementById("statRevenue"),
+  dashboardHealthText: document.getElementById("dashboardHealthText"),
+  clientForm: document.getElementById("clientForm"),
+  clientBusinessName: document.getElementById("clientBusinessName"),
+  clientIndustry: document.getElementById("clientIndustry"),
+  clientHandles: document.getElementById("clientHandles"),
+  clientWebsite: document.getElementById("clientWebsite"),
+  clientBrandVoice: document.getElementById("clientBrandVoice"),
+  clientKeywords: document.getElementById("clientKeywords"),
+  clientAvoid: document.getElementById("clientAvoid"),
+  clientAudience: document.getElementById("clientAudience"),
+  clientWhatsapp: document.getElementById("clientWhatsapp"),
+  clientLogo: document.getElementById("clientLogo"),
+  clientNotes: document.getElementById("clientNotes"),
+  clientsList: document.getElementById("clientsList"),
+  calendarForm: document.getElementById("calendarForm"),
+  calendarClientSelect: document.getElementById("calendarClientSelect"),
+  calendarSeedInput: document.getElementById("calendarSeedInput"),
+  calendarPostsList: document.getElementById("calendarPostsList"),
+  generatorForm: document.getElementById("generatorForm"),
+  generatorClientSelect: document.getElementById("generatorClientSelect"),
+  generatorContentInput: document.getElementById("generatorContentInput"),
+  canvaTemplateSelect: document.getElementById("canvaTemplateSelect"),
+  canvaTemplatePreview: document.getElementById("canvaTemplatePreview"),
+  previewCard: document.getElementById("previewCard"),
+  draftsList: document.getElementById("draftsList"),
+  analyticsClientSelect: document.getElementById("analyticsClientSelect"),
+  analyticsDaysSelect: document.getElementById("analyticsDaysSelect"),
+  refreshAnalyticsBtn: document.getElementById("refreshAnalyticsBtn"),
+  analyticsLikes: document.getElementById("analyticsLikes"),
+  analyticsShares: document.getElementById("analyticsShares"),
+  analyticsClicks: document.getElementById("analyticsClicks"),
+  analyticsFollowers: document.getElementById("analyticsFollowers"),
+  analyticsChart: document.getElementById("analyticsChart"),
+  paymentForm: document.getElementById("paymentForm"),
+  paymentClientSelect: document.getElementById("paymentClientSelect"),
+  paymentPlanName: document.getElementById("paymentPlanName"),
+  paymentAmount: document.getElementById("paymentAmount"),
+  paymentCurrency: document.getElementById("paymentCurrency"),
+  paymentStatus: document.getElementById("paymentStatus"),
+  paymentDueDate: document.getElementById("paymentDueDate"),
+  paymentAutoPause: document.getElementById("paymentAutoPause"),
+  paymentsList: document.getElementById("paymentsList"),
+  linkedinStatus: document.getElementById("linkedinStatus"),
+  instagramStatus: document.getElementById("instagramStatus"),
+  facebookStatus: document.getElementById("facebookStatus"),
+  canvaStatus: document.getElementById("canvaStatus"),
+  connectLinkedInBtn: document.getElementById("connectLinkedInBtn"),
+  connectInstagramBtn: document.getElementById("connectInstagramBtn"),
+  connectFacebookBtn: document.getElementById("connectFacebookBtn"),
+  connectCanvaBtn: document.getElementById("connectCanvaBtn"),
+};
 
 function escapeHtml(value) {
   return String(value || "")
@@ -115,180 +104,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function refreshIcons() {
-  if (window.lucide && typeof window.lucide.createIcons === "function") {
-    window.lucide.createIcons();
-  }
+function setBanner(text) {
+  refs.authBanner.textContent = text;
 }
 
-function renderStatusBadge(node, connected, label) {
-  if (!node) return;
-  node.className = `status-badge ${connected ? "connected" : "disconnected"}`;
-  node.innerHTML = `<span class="dot"></span>${escapeHtml(label)}`;
-}
-
-function setActiveTab(tabName) {
-  if (!isAuthenticated) {
-    Object.values(pageViews).forEach((section) => {
-      section.hidden = true;
-    });
-    return;
-  }
-  Object.entries(pageViews).forEach(([name, section]) => {
-    section.hidden = name !== tabName;
-  });
-  tabButtons.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.tab === tabName);
-  });
-  document.body.classList.remove("sidebar-open");
-}
-
-function closeProfileMenu() {
-  profileMenu.hidden = true;
-  profileMenuOpen = false;
-}
-
-function openProfileMenu() {
-  profileMenu.hidden = false;
-  profileMenuOpen = true;
-}
-
-function setAuthedUI(isAuthed, email = "", userId = "") {
-  isAuthenticated = isAuthed;
-  document.body.classList.remove("sidebar-open");
-  document.body.classList.toggle("is-authed", isAuthed);
-  publicLanding.hidden = isAuthed;
-  googleLoginBtn.hidden = isAuthed;
-  githubLoginBtn.hidden = isAuthed;
-  emailLoginTopBtn.hidden = isAuthed;
-  logoutBtn.hidden = !isAuthed;
-  connectAccountsBtn.hidden = !isAuthed;
-  topRunBtn.hidden = !isAuthed;
-  topSettingsBtn.hidden = !isAuthed;
-  sidebarToggle.hidden = !isAuthed;
-  userChip.hidden = !isAuthed;
-  appSidebar.hidden = !isAuthed;
-  tabNav.hidden = !isAuthed;
-  socialSection.hidden = !isAuthed;
-  generatorSection.hidden = !isAuthed;
-  recentPlansSection.hidden = !isAuthed;
-  researchSection.hidden = !isAuthed;
-  plansSection.hidden = !isAuthed;
-  draftsSection.hidden = !isAuthed;
-  historySection.hidden = !isAuthed;
-  schedulesSection.hidden = !isAuthed;
-  profileSection.hidden = !isAuthed;
-  profileDetailsSection.hidden = !isAuthed;
-  securitySection.hidden = !isAuthed;
-  settingsSection.hidden = !isAuthed;
-  authState.hidden = !isAuthed;
-  authState.textContent = isAuthed ? `Logged in as ${email}` : "Not logged in";
-  userInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
-  profileMenuInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
-  profileMenuEmail.textContent = isAuthed ? email : "Not logged in";
-  profileMenuUserId.textContent = isAuthed && userId ? `ID: ${userId}` : "-";
-  profileBigInitial.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
-  profileDisplayEmail.textContent = isAuthed ? email : "Not logged in";
-  closeProfileMenu();
-  if (isAuthed) {
-    setActiveTab("dashboard");
-  } else {
-    Object.values(pageViews).forEach((section) => {
-      section.hidden = true;
-    });
-  }
-}
-
-function applyProfileFromSession(session) {
-  const email = session?.user?.email || "";
-  const md = session?.user?.user_metadata || {};
-  const fullName = md.full_name || md.name || "";
-  profileDisplayName.textContent = fullName || "Your Profile";
-  profileDisplayEmail.textContent = email || "Not logged in";
-  profileMenuEmail.textContent = email || "Not logged in";
-  profileFullNameInput.value = md.full_name || "";
-  profileCompanyInput.value = md.company || "";
-  profileRoleInput.value = md.role || "";
-  profileLocationInput.value = md.location || "";
-  profileWebsiteInput.value = md.website || "";
-  profileTimezoneInput.value = md.timezone || "Asia/Karachi";
-  settingsTimezoneMirror.value = md.timezone || "Asia/Karachi";
-  profileBioInput.value = md.bio || "";
-}
-
-async function api(path, options = {}) {
-  if (!currentSession?.access_token) throw new Error("Not authenticated");
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${currentSession.access_token}`,
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await res.text();
-  let body = {};
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    body = { raw: text };
-  }
-
-  if (!res.ok) {
-    throw new Error(body.detail || body.message || `Request failed (${res.status})`);
-  }
-  return body;
-}
-
-async function signInWithProvider(provider) {
-  if (!sbClient) throw new Error("Supabase client failed to initialize.");
-  const { error } = await sbClient.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo: window.location.origin },
-  });
-  if (error) {
-    throw error;
-  }
-}
-
-async function sendMagicLink(email) {
-  const normalized = String(email || "").trim().toLowerCase();
-  if (!normalized || !normalized.includes("@")) {
-    throw new Error("Enter a valid email address.");
-  }
-  const { error } = await sbClient.auth.signInWithOtp({
-    email: normalized,
-    options: { emailRedirectTo: window.location.origin },
-  });
-  if (error) {
-    throw error;
-  }
-}
-
-async function apiPublic(path, options = {}) {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
-  const text = await res.text();
-  let body = {};
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    body = { raw: text };
-  }
-  if (!res.ok) {
-    throw new Error(body.detail || body.message || `Request failed (${res.status})`);
-  }
-  return body;
-}
-
-function toLocalDateTimeInputValue(iso) {
+function localDateInputValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
   const offset = d.getTimezoneOffset();
@@ -296,758 +116,611 @@ function toLocalDateTimeInputValue(iso) {
   return local.toISOString().slice(0, 16);
 }
 
-function getSelectedPlatforms() {
-  const boxes = Array.from(document.querySelectorAll('input[name="platform"]:checked'));
-  return boxes.map((x) => x.value);
-}
-
-function getHistoryFilters() {
-  return {
-    platform: historyPlatformFilter.value || "all",
-    status: historyStatusFilter.value || "all",
-    date: historyDateFilter.value || "",
-  };
-}
-
-function buildHistoryRows(posts) {
-  if (!posts.length) {
-    return "<p class='muted'>No matching history records.</p>";
+async function api(path, options = {}) {
+  if (!state.session?.access_token) throw new Error("Not authenticated");
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${state.session.access_token}`,
+      ...(options.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let body = {};
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { message: text };
   }
+  if (!res.ok) throw new Error(body.detail || body.message || `Request failed (${res.status})`);
+  return body;
+}
 
-  const rows = posts
+async function apiPublic(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, options);
+  const text = await res.text();
+  let body = {};
+  try {
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    body = { message: text };
+  }
+  if (!res.ok) throw new Error(body.detail || body.message || `Request failed (${res.status})`);
+  return body;
+}
+
+function setActivePage(page) {
+  state.activePage = page;
+  Object.entries(refs.pages).forEach(([name, node]) => {
+    node.hidden = name !== page || !state.authed;
+  });
+  refs.navButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.page === page));
+  refs.body.classList.remove("menu-open");
+}
+
+function setAuthedUI(isAuthed, email = "") {
+  state.authed = isAuthed;
+  refs.loginSection.hidden = isAuthed;
+  refs.sidebar.hidden = !isAuthed;
+  refs.googleLoginBtn.hidden = isAuthed;
+  refs.githubLoginBtn.hidden = isAuthed;
+  refs.emailLoginBtn.hidden = isAuthed;
+  refs.logoutBtn.hidden = !isAuthed;
+  refs.profileBtn.hidden = !isAuthed;
+  refs.profileBtn.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
+  if (!isAuthed) {
+    Object.values(refs.pages).forEach((node) => {
+      node.hidden = true;
+    });
+    setBanner("Not logged in");
+    return;
+  }
+  setActivePage(state.activePage);
+  setBanner(`Logged in as ${email}`);
+}
+
+function selectedCheckboxValues(selector) {
+  return Array.from(document.querySelectorAll(selector))
+    .filter((el) => el.checked)
+    .map((el) => el.value);
+}
+
+function selectedClientFrom(selectEl) {
+  const id = Number(selectEl.value || 0);
+  return state.clients.find((c) => c.id === id) || null;
+}
+
+function withSkeleton(node) {
+  if (!node) return;
+  node.classList.add("skeleton");
+  setTimeout(() => node.classList.remove("skeleton"), 500);
+}
+
+function populateClientSelects() {
+  const options = [
+    '<option value="">Select client</option>',
+    ...state.clients.map((c) => `<option value="${c.id}">${escapeHtml(c.business_name)}</option>`),
+  ].join("");
+  refs.calendarClientSelect.innerHTML = options;
+  refs.generatorClientSelect.innerHTML = options;
+  refs.analyticsClientSelect.innerHTML = `<option value="">All clients</option>${state.clients
+    .map((c) => `<option value="${c.id}">${escapeHtml(c.business_name)}</option>`)
+    .join("")}`;
+  refs.paymentClientSelect.innerHTML = options;
+}
+
+function renderClientCards() {
+  if (!state.clients.length) {
+    refs.clientsList.innerHTML = "<p class='muted'>No clients yet.</p>";
+    return;
+  }
+  refs.clientsList.innerHTML = state.clients
     .map(
-      (post) => `
-      <div class="history-item">
-        <div class="history-row">
-          <div>${new Date(post.created_at).toLocaleString()}</div>
-          <div>${post.platform.toUpperCase()}</div>
-          <div>${escapeHtml((post.edited_text || post.generated_text || "").slice(0, 85))}</div>
-          <div>${post.status}</div>
-          <button class="ghost view-draft-btn" data-id="${post.id}" type="button">View</button>
-        </div>
-      </div>
-    `,
+      (c) => `
+        <article class="post-card" data-client-id="${c.id}">
+          <strong>${escapeHtml(c.business_name)}</strong>
+          <p class="muted">${escapeHtml(c.industry || "N/A")} | ${escapeHtml(c.website || "No website")}</p>
+          <p class="muted">Accounts: ${escapeHtml((c.connected_accounts || []).join(", ") || "None")}</p>
+          <p class="muted">Next post: ${c.next_scheduled_post ? new Date(c.next_scheduled_post).toLocaleString() : "Not scheduled"}</p>
+          <p class="muted">Engagement: Likes ${c.engagement_likes} | Shares ${c.engagement_shares} | Clicks ${c.engagement_clicks} | Followers +${c.follower_growth}</p>
+          <p class="muted">Onboarding: ${escapeHtml(c.onboarding_status)} | Service: ${c.service_paused ? "Paused" : "Active"}</p>
+          <div class="row">
+            <button class="secondary onboarding-btn" data-client-id="${c.id}" type="button">Complete Onboarding</button>
+          </div>
+        </article>
+      `,
     )
     .join("");
+}
 
-  return `
-    <div class="history-item history-head">
-      <div class="history-row">
-        <div>Date</div>
-        <div>Platform</div>
-        <div>Content</div>
-        <div>Status</div>
-        <div>Action</div>
-      </div>
-    </div>
-    ${rows}
+function renderDrafts() {
+  if (!state.drafts.length) {
+    refs.draftsList.innerHTML = "<p class='muted'>No drafts found.</p>";
+    refs.previewCard.textContent = "No draft generated yet.";
+    return;
+  }
+  const latest = state.drafts[0];
+  refs.previewCard.innerHTML = `<strong>${escapeHtml(latest.platform.toUpperCase())}</strong><p>${escapeHtml(
+    (latest.edited_text || latest.generated_text || "").slice(0, 450),
+  )}</p>`;
+  refs.draftsList.innerHTML = state.drafts
+    .slice(0, 20)
+    .map(
+      (d) => `
+        <article class="post-card" data-post-id="${d.id}">
+          <strong>${escapeHtml(d.platform.toUpperCase())}</strong>
+          <p class="muted">Status: ${escapeHtml(d.status)}</p>
+          <textarea class="draft-editor">${escapeHtml(d.edited_text || d.generated_text || "")}</textarea>
+          <div class="row">
+            <input class="schedule-input" type="datetime-local" value="${localDateInputValue(d.scheduled_at)}" />
+            <button class="secondary save-btn" type="button">Save</button>
+            <button class="secondary schedule-btn" type="button">Schedule</button>
+          </div>
+          <div class="row">
+            <button class="secondary visual-btn" type="button">Generate Visual</button>
+            <button class="secondary approval-btn" type="button">WhatsApp Approval</button>
+            <button class="cta publish-btn" type="button">Publish</button>
+          </div>
+          <p class="muted">${escapeHtml(d.last_error || "")}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderCalendarPosts() {
+  const scheduled = state.drafts.filter((d) => d.status === "scheduled");
+  if (!scheduled.length) {
+    refs.calendarPostsList.innerHTML = "<p class='muted'>No scheduled posts yet.</p>";
+    return;
+  }
+  refs.calendarPostsList.innerHTML = scheduled
+    .slice(0, 25)
+    .map(
+      (d) => `
+        <article class="post-card">
+          <strong>${escapeHtml(d.platform.toUpperCase())}</strong>
+          <p class="muted">${d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : "No time set"}</p>
+          <p>${escapeHtml((d.edited_text || d.generated_text || "").slice(0, 220))}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderPayments() {
+  if (!state.payments.length) {
+    refs.paymentsList.innerHTML = "<p class='muted'>No payment records yet.</p>";
+    return;
+  }
+  refs.paymentsList.innerHTML = state.payments
+    .map(
+      (p) => `
+        <article class="post-card" data-payment-id="${p.id}">
+          <strong>${escapeHtml(p.client_name)}</strong>
+          <p class="muted">${escapeHtml(p.plan_name)} | ${p.currency} ${p.amount}</p>
+          <p class="muted">Due: ${p.due_date ? new Date(p.due_date).toLocaleString() : "Not set"}</p>
+          <div class="row">
+            <select class="payment-status-select">
+              ${["active", "past_due", "unpaid", "paused", "cancelled"]
+                .map((s) => `<option value="${s}" ${p.subscription_status === s ? "selected" : ""}>${s}</option>`)
+                .join("")}
+            </select>
+            <button class="secondary update-payment-btn" type="button">Update Status</button>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+function renderSocialStatus(accounts) {
+  const map = {};
+  accounts.forEach((a) => {
+    map[a.platform] = a;
+  });
+  refs.linkedinStatus.textContent = map.linkedin?.connected ? `Connected: ${map.linkedin.account_name || "LinkedIn"}` : "Not connected";
+  refs.instagramStatus.textContent = map.instagram?.connected ? `Connected: ${map.instagram.account_name || "Instagram"}` : "Not connected";
+  refs.facebookStatus.textContent = map.facebook?.connected ? `Connected: ${map.facebook.account_name || "Facebook"}` : "Not connected";
+  refs.canvaStatus.textContent = map.canva?.connected ? `Connected: ${map.canva.account_name || "Canva"}` : "Not connected";
+}
+
+function renderTemplatePreview() {
+  const selected = state.templates.find((t) => t.id === refs.canvaTemplateSelect.value) || state.templates[0];
+  if (!selected) {
+    refs.canvaTemplatePreview.textContent = "Template preview will appear here.";
+    return;
+  }
+  refs.canvaTemplatePreview.innerHTML = `
+    <strong>${escapeHtml(selected.name)}</strong>
+    <p class="muted">${escapeHtml(selected.category)}</p>
+    <p>${escapeHtml(selected.description || "")}</p>
   `;
 }
 
-function renderDraft(post) {
-  const isLinkedIn = post.platform === "linkedin";
-  const isTwitter = post.platform === "twitter";
-  const isFacebook = post.platform === "facebook";
-  const canPublish = isLinkedIn || isTwitter || isFacebook;
-  const canSchedule = isLinkedIn || isFacebook;
-  const canAttachMedia = isLinkedIn || isTwitter || isFacebook;
-  const mediaAccept = (isTwitter || isFacebook) ? ".png,.jpg,.jpeg,.webp" : ".png,.jpg,.jpeg,.pdf";
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "post-card";
-  wrapper.innerHTML = `
-    <div class="post-title">${post.platform}</div>
-    <div class="post-meta">Status: ${post.status}</div>
-    <textarea class="post-editor" id="editor-${post.id}">${escapeHtml(post.edited_text || post.generated_text)}</textarea>
-    <div class="row">
-      <button id="save-${post.id}" class="secondary" type="button">Save Edit</button>
-      <button id="approve-${post.id}" type="button">Approve</button>
-      <button id="reject-${post.id}" class="warn" type="button">Reject</button>
-      <button id="request-approval-${post.id}" class="ghost" type="button">Request WhatsApp Approval</button>
-      <button id="publish-${post.id}" class="secondary" type="button" ${canPublish ? "" : "disabled"}>${isTwitter ? "Open in X" : "Publish Now"}</button>
-      <input type="datetime-local" id="schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
-      <button id="set-schedule-${post.id}" class="secondary" type="button" ${canSchedule ? "" : "disabled"}>Schedule</button>
-    </div>
-    <div class="row">
-      <input type="file" id="file-${post.id}" accept="${mediaAccept}" ${canAttachMedia ? "" : "disabled"} />
-      <button id="upload-${post.id}" class="secondary" type="button" ${canAttachMedia ? "" : "disabled"}>Attach Media</button>
-    </div>
-    <div class="post-meta" id="media-${post.id}"></div>
-    <div class="post-meta" id="feedback-${post.id}">${!canPublish ? "Publishing is enabled for LinkedIn, Twitter, and Facebook." : (isTwitter ? "Twitter free mode: Open in X and post manually." : "")}</div>
-    <div class="post-meta">${post.last_error ? `Error: ${escapeHtml(post.last_error)}` : ""}</div>
-  `;
-
-  const feedback = wrapper.querySelector(`#feedback-${post.id}`);
-  const mediaBox = wrapper.querySelector(`#media-${post.id}`);
-  const setFeedback = (text) => {
-    feedback.textContent = text;
-  };
-  const setMedia = (text) => {
-    mediaBox.textContent = text;
-  };
-
-  async function loadMedia() {
-    try {
-      const items = await api(`/api/posts/${post.id}/media`);
-      if (!items.length) {
-        setMedia("No media attached.");
-        return;
-      }
-      setMedia(items.map((m) => `${m.file_name} (${m.mime_type})${m.platform_asset_id ? " [Asset ready]" : ""}`).join(" | "));
-    } catch (err) {
-      setMedia(`Media load failed: ${err.message}`);
-    }
-  }
-
-  wrapper.querySelector(`#save-${post.id}`).addEventListener("click", async () => {
-    try {
-      setFeedback("Saving...");
-      const editedText = wrapper.querySelector(`#editor-${post.id}`).value;
-      await api(`/api/posts/${post.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ edited_text: editedText }),
-      });
-      setFeedback("Saved.");
-      await loadDrafts();
-      await loadHistory();
-    } catch (err) {
-      setFeedback(`Save failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#approve-${post.id}`).addEventListener("click", async () => {
-    try {
-      setFeedback("Approving...");
-      await api(`/api/posts/${post.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "approved" }),
-      });
-      setFeedback("Approved.");
-      await refreshAllData();
-    } catch (err) {
-      setFeedback(`Approve failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#reject-${post.id}`).addEventListener("click", async () => {
-    try {
-      setFeedback("Rejecting...");
-      await api(`/api/posts/${post.id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "rejected" }),
-      });
-      setFeedback("Rejected.");
-      await refreshAllData();
-    } catch (err) {
-      setFeedback(`Reject failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#request-approval-${post.id}`).addEventListener("click", async () => {
-    try {
-      setFeedback("Sending WhatsApp approval request...");
-      const res = await api(`/api/posts/${post.id}/request-approval`, { method: "POST" });
-      setFeedback(res.message || "Approval request sent.");
-      await refreshAllData();
-    } catch (err) {
-      setFeedback(`Approval request failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#publish-${post.id}`).addEventListener("click", async () => {
-    if (!canPublish) return;
-    try {
-      if (isTwitter) {
-        const text = wrapper.querySelector(`#editor-${post.id}`).value.trim();
-        if (!text) {
-          setFeedback("Add text before publishing.");
-          return;
-        }
-        const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text.slice(0, 280))}`;
-        window.open(intentUrl, "_blank", "noopener,noreferrer");
-        await api(`/api/posts/${post.id}/manual-publish`, {
-          method: "POST",
-          body: JSON.stringify({ confirm: true }),
-        });
-        setFeedback("Opened X composer.");
-      } else if (isFacebook) {
-        setFeedback("Publishing to Facebook...");
-        await api(`/api/posts/${post.id}/publish`, {
-          method: "POST",
-          body: JSON.stringify({ confirm: true }),
-        });
-        setFeedback("Published successfully.");
-      } else {
-        setFeedback("Publishing to LinkedIn...");
-        await api(`/api/posts/${post.id}/publish`, {
-          method: "POST",
-          body: JSON.stringify({ confirm: true }),
-        });
-        setFeedback("Published successfully.");
-      }
-      await refreshAllData();
-    } catch (err) {
-      setFeedback(`Publish failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#set-schedule-${post.id}`).addEventListener("click", async () => {
-    if (!canSchedule) return;
-    try {
-      const value = wrapper.querySelector(`#schedule-${post.id}`).value;
-      if (!value) {
-        setFeedback("Choose date/time first.");
-        return;
-      }
-      setFeedback("Scheduling...");
-      await api(`/api/posts/${post.id}/schedule`, {
-        method: "PATCH",
-        body: JSON.stringify({ scheduled_at: new Date(value).toISOString() }),
-      });
-      setFeedback("Scheduled.");
-      await refreshAllData();
-    } catch (err) {
-      setFeedback(`Schedule failed: ${err.message}`);
-    }
-  });
-
-  wrapper.querySelector(`#upload-${post.id}`).addEventListener("click", async () => {
-    if (!canAttachMedia) return;
-    const input = wrapper.querySelector(`#file-${post.id}`);
-    const file = input.files?.[0];
-    if (!file) {
-      setFeedback((isTwitter || isFacebook) ? "Choose PNG/JPG/WEBP image first." : "Choose PNG/JPG/PDF first.");
-      return;
-    }
-    try {
-      setFeedback("Uploading media...");
-      const b64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(new Error("Could not read file"));
-        reader.readAsDataURL(file);
-      });
-      await api("/api/uploads", {
-        method: "POST",
-        body: JSON.stringify({
-          post_id: post.id,
-          file_name: file.name,
-          mime_type: file.type || "application/octet-stream",
-          content_base64: b64,
-        }),
-      });
-      setFeedback("Media uploaded.");
-      input.value = "";
-      await loadMedia();
-    } catch (err) {
-      setFeedback(`Upload failed: ${err.message}`);
-    }
-  });
-
-  loadMedia();
-  return wrapper;
+async function loadDashboard() {
+  const data = await api("/api/dashboard/overview");
+  refs.statClients.textContent = String(data.total_clients || 0);
+  refs.statScheduled.textContent = String(data.scheduled_posts || 0);
+  refs.statEngagement.textContent = String(data.engagement_total || 0);
+  refs.statRevenue.textContent = `$${Number(data.revenue_total || 0).toFixed(2)}`;
+  refs.notifyCount.textContent = String(data.pending_approvals || 0);
+  refs.dashboardHealthText.textContent = data.pending_approvals > 0
+    ? `${data.pending_approvals} draft approval(s) pending`
+    : "All systems healthy and queued posts are on track.";
 }
 
-async function loadSocial() {
-  const data = await api("/api/social-accounts");
-  const linkedin = data.find((x) => x.platform === "linkedin");
-  const twitter = data.find((x) => x.platform === "twitter");
-  const canva = data.find((x) => x.platform === "canva");
-  const facebook = data.find((x) => x.platform === "facebook");
-
-  renderStatusBadge(linkedinStatus, !!linkedin?.connected, linkedin?.connected ? `Connected: ${linkedin.account_name || "LinkedIn"}` : "Not connected");
-  renderStatusBadge(twitterStatus, !!twitter?.connected, twitter?.connected ? `Connected: ${twitter.account_name || "Twitter/X"}` : "Not connected");
-  renderStatusBadge(canvaStatus, !!canva?.connected, canva?.connected ? `Connected: ${canva.account_name || "Canva"}` : "Not connected");
-  renderStatusBadge(facebookStatus, !!facebook?.connected, facebook?.connected ? `Connected: ${facebook.account_name || "Facebook"}` : "Not connected");
-}
-
-async function loadResearch(limit = 20) {
-  const data = await api(`/api/research?limit=${limit}`, { method: "GET" });
-  researchList.innerHTML = "";
-  if (!data.length) {
-    researchList.innerHTML = "<p class='muted'>No research items yet. Run AI Agent to collect trends.</p>";
-    return;
-  }
-
-  data.forEach((item, index) => {
-    const node = document.createElement("div");
-    node.className = "research-item";
-    const relevance = Math.max(60, 98 - index * 5);
-    const title = escapeHtml(item.title);
-    const link = item.url
-      ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer">${title}</a>`
-      : title;
-    node.innerHTML = `
-      <strong>${item.source.toUpperCase()}</strong><br/>
-      ${link}<br/>
-      <small>${escapeHtml(item.snippet || "")}</small><br/>
-      <small>Relevance score: ${relevance}%</small><br/>
-      <small>${new Date(item.created_at).toLocaleString()}</small>
-    `;
-    researchList.appendChild(node);
-  });
-}
-
-async function loadPlans(limit = 30) {
-  const data = await api(`/api/content-plans?limit=${limit}`, { method: "GET" });
-  plansList.innerHTML = "";
-  recentPlansList.innerHTML = "";
-
-  if (!data.length) {
-    plansList.innerHTML = "<p class='muted'>No plans yet. Run AI Agent to create schedule.</p>";
-    recentPlansList.innerHTML = "<p class='muted'>No plans generated yet.</p>";
-    return;
-  }
-
-  const recent = data.slice(0, 5);
-  recent.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "plan-item";
-    card.innerHTML = `
-      <strong>${escapeHtml(item.theme)}</strong><br/>
-      <small>Platform: ${item.platform.toUpperCase()}</small><br/>
-      <small>Status: ${item.status}</small><br/>
-      <small>Created: ${new Date(item.created_at).toLocaleString()}</small>
-    `;
-    recentPlansList.appendChild(card);
-  });
-
-  data.forEach((item) => {
-    const node = document.createElement("div");
-    node.className = "plan-item";
-    const hasGeneratedImage = !!item.image_url && !item.image_url.includes("pollinations.ai/p/");
-    node.innerHTML = `
-      <strong>${item.platform.toUpperCase()}</strong> - ${item.status}<br/>
-      <small>Planned: ${item.planned_for ? new Date(item.planned_for).toLocaleString() : "N/A"}</small><br/>
-      <small>Theme: ${escapeHtml(item.theme)}</small><br/>
-      <small>Angle: ${escapeHtml(item.post_angle)}</small><br/>
-      <div class="plan-actions">
-        <button class="secondary" id="gen-image-${item.id}" type="button">${hasGeneratedImage ? "Regenerate Visual" : "Generate Visual"}</button>
-        ${hasGeneratedImage ? `<a href="${item.image_url}" target="_blank" rel="noopener noreferrer">Open Image</a>` : "<small>Image not generated yet.</small>"}
-      </div>
-      <small id="plan-status-${item.id}" class="muted"></small>
-      ${hasGeneratedImage ? `<img class="plan-preview" src="${item.image_url}" alt="Plan ${item.id} preview" />` : ""}
-    `;
-    plansList.appendChild(node);
-
-    const btn = node.querySelector(`#gen-image-${item.id}`);
-    const planStatusNode = node.querySelector(`#plan-status-${item.id}`);
-    if (btn) {
-      btn.addEventListener("click", async () => {
-        try {
-          btn.disabled = true;
-          btn.textContent = "Generating...";
-          if (planStatusNode) planStatusNode.textContent = "Generating image...";
-          await api(`/api/content-plans/${item.id}/generate-image`, { method: "POST" });
-          await loadPlans(limit);
-          await loadDrafts();
-          statusText.textContent = "Visual generated and attached to latest draft for this platform.";
-        } catch (err) {
-          const msg = `Image error: ${err.message}`;
-          statusText.textContent = msg;
-          if (planStatusNode) planStatusNode.textContent = msg;
-          btn.disabled = false;
-          btn.textContent = "Generate Visual";
-        } finally {
-          if (planStatusNode && !planStatusNode.textContent) {
-            planStatusNode.textContent = "";
-          }
-        }
-      });
-    }
-  });
+async function loadClients() {
+  state.clients = await api("/api/clients");
+  populateClientSelects();
+  renderClientCards();
 }
 
 async function loadDrafts() {
   const data = await api("/api/drafts");
-  draftsList.innerHTML = "";
-
-  const draftLike = data.posts.filter((x) => x.status !== "posted");
-  if (!draftLike.length) {
-    draftsList.innerHTML = "<p class='muted'>No drafts pending.</p>";
-    return;
-  }
-
-  draftLike.forEach((post) => draftsList.appendChild(renderDraft(post)));
+  state.drafts = data.posts || [];
+  renderDrafts();
+  renderCalendarPosts();
 }
 
-async function loadHistory() {
-  const data = await api("/api/drafts");
-  const filters = getHistoryFilters();
-
-  const filtered = data.posts.filter((post) => {
-    if (filters.platform !== "all" && post.platform !== filters.platform) return false;
-    if (filters.status !== "all" && post.status !== filters.status) return false;
-    if (filters.date) {
-      const postDay = new Date(post.created_at).toISOString().slice(0, 10);
-      if (postDay !== filters.date) return false;
-    }
-    return true;
-  });
-
-  historyList.innerHTML = buildHistoryRows(filtered);
-  historyList.querySelectorAll(".view-draft-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setActiveTab("drafts");
-      statusText.textContent = `Viewing draft #${btn.dataset.id}`;
-    });
-  });
+async function loadPayments() {
+  state.payments = await api("/api/payments");
+  renderPayments();
 }
 
-async function loadSchedules() {
-  const data = await api("/api/drafts");
-  schedulesList.innerHTML = "";
-  const scheduled = data.posts.filter((x) => x.status === "scheduled");
-  if (!scheduled.length) {
-    schedulesList.innerHTML = "<p class='muted'>No scheduled posts yet.</p>";
-    return;
+async function loadCanvaTemplates() {
+  state.templates = await api("/api/canva/templates");
+  refs.canvaTemplateSelect.innerHTML = state.templates
+    .map((t) => `<option value="${t.id}">${escapeHtml(t.name)} (${escapeHtml(t.category)})</option>`)
+    .join("");
+  renderTemplatePreview();
+}
+
+async function loadSocial() {
+  const data = await api("/api/social-accounts");
+  renderSocialStatus(data);
+}
+
+async function loadAnalytics() {
+  const clientId = refs.analyticsClientSelect.value ? Number(refs.analyticsClientSelect.value) : null;
+  const days = Number(refs.analyticsDaysSelect.value || 14);
+  const query = clientId ? `?days=${days}&client_id=${clientId}` : `?days=${days}`;
+  const data = await api(`/api/analytics/overview${query}`);
+  refs.analyticsLikes.textContent = String(data.totals.likes || 0);
+  refs.analyticsShares.textContent = String(data.totals.shares || 0);
+  refs.analyticsClicks.textContent = String(data.totals.clicks || 0);
+  refs.analyticsFollowers.textContent = String(data.totals.follower_growth || 0);
+
+  const labels = data.series.map((x) => x.date);
+  const likes = data.series.map((x) => x.likes);
+  const shares = data.series.map((x) => x.shares);
+  const clicks = data.series.map((x) => x.clicks);
+  const followers = data.series.map((x) => x.follower_growth);
+
+  if (state.analyticsChart) {
+    state.analyticsChart.destroy();
   }
-
-  scheduled.forEach((post) => {
-    const node = document.createElement("div");
-    node.className = "schedule-item";
-    node.innerHTML = `
-      <strong>${post.platform.toUpperCase()}</strong><br/>
-      <small>Scheduled: ${post.scheduled_at ? new Date(post.scheduled_at).toLocaleString() : "N/A"}</small><br/>
-      <small>${escapeHtml((post.edited_text || post.generated_text || "").slice(0, 130))}</small>
-      <div class="row">
-        <input type="datetime-local" id="edit-schedule-${post.id}" value="${toLocalDateTimeInputValue(post.scheduled_at)}" />
-        <button class="secondary" id="save-schedule-${post.id}" type="button">Edit Schedule</button>
-        <button class="warn" id="cancel-schedule-${post.id}" type="button">Cancel</button>
-      </div>
-    `;
-    schedulesList.appendChild(node);
-
-    node.querySelector(`#save-schedule-${post.id}`).addEventListener("click", async () => {
-      try {
-        const value = node.querySelector(`#edit-schedule-${post.id}`).value;
-        if (!value) {
-          statusText.textContent = "Select a valid date/time.";
-          return;
-        }
-        await api(`/api/posts/${post.id}/schedule`, {
-          method: "PATCH",
-          body: JSON.stringify({ scheduled_at: new Date(value).toISOString() }),
-        });
-        statusText.textContent = "Schedule updated.";
-        await refreshAllData();
-      } catch (err) {
-        statusText.textContent = `Schedule update failed: ${err.message}`;
-      }
-    });
-
-    node.querySelector(`#cancel-schedule-${post.id}`).addEventListener("click", async () => {
-      try {
-        await api(`/api/posts/${post.id}/status`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: "draft" }),
-        });
-        statusText.textContent = "Schedule canceled.";
-        await refreshAllData();
-      } catch (err) {
-        statusText.textContent = `Cancel failed: ${err.message}`;
-      }
-    });
+  state.analyticsChart = new Chart(refs.analyticsChart, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Likes", data: likes, borderColor: "#4f46e5", backgroundColor: "rgba(79,70,229,0.1)", tension: 0.3 },
+        { label: "Shares", data: shares, borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.1)", tension: 0.3 },
+        { label: "Clicks", data: clicks, borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.1)", tension: 0.3 },
+        { label: "Follower Growth", data: followers, borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,0.1)", tension: 0.3 },
+      ],
+    },
+    options: { responsive: true, interaction: { mode: "index", intersect: false } },
   });
 }
 
-async function refreshAllData() {
-  await Promise.all([loadSocial(), loadResearch(), loadPlans(), loadDrafts(), loadHistory(), loadSchedules()]);
-  refreshIcons();
+async function refreshAll() {
+  withSkeleton(refs.statClients.parentElement);
+  await Promise.all([loadDashboard(), loadClients(), loadDrafts(), loadPayments(), loadCanvaTemplates(), loadSocial()]);
+  await loadAnalytics();
 }
 
-generateBtn.addEventListener("click", async () => {
-  const content = contentInput.value.trim();
-  if (!content) {
-    statusText.textContent = "Please enter content first.";
-    return;
-  }
-  const platforms = getSelectedPlatforms();
-  if (!platforms.length) {
-    statusText.textContent = "Select at least one platform.";
-    return;
-  }
-
-  const payload = {
-    content,
-    business_name: (businessNameInput.value || "").trim(),
-    niche: (nicheInput.value || "").trim(),
-    audience: (audienceInput.value || "").trim(),
-    tone: (toneInput.value || "").trim(),
-    region: (regionInput.value || "").trim(),
-    platforms,
-    language_pref: languagePrefInput.value || "english_urdu",
-  };
-
-  statusText.textContent = "Running workflow...";
-  try {
-    const result = await api("/api/agent/run", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    statusText.textContent = `Workflow complete. Run #${result.run_id}`;
-    await refreshAllData();
-    setActiveTab("drafts");
-  } catch (err) {
-    statusText.textContent = `Error: ${err.message}`;
-  }
-});
-
-connectAccountsBtn.addEventListener("click", () => {
-  setActiveTab("dashboard");
-  socialSection.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-topRunBtn.addEventListener("click", () => {
-  setActiveTab("dashboard");
-  contentInput.focus();
-});
-
-topSettingsBtn.addEventListener("click", () => {
-  setActiveTab("settings");
-});
-
-sidebarToggle.addEventListener("click", () => {
-  document.body.classList.toggle("sidebar-open");
-});
-
-userChip.addEventListener("click", (event) => {
-  event.stopPropagation();
-  if (profileMenuOpen) {
-    closeProfileMenu();
+async function connectPlatform(path, label) {
+  const data = await api(path, { method: "GET" });
+  if (data.authorization_url) {
+    window.location.href = data.authorization_url;
   } else {
-    openProfileMenu();
-  }
-});
-
-profileDashboardBtn.addEventListener("click", () => {
-  setActiveTab("dashboard");
-  closeProfileMenu();
-});
-
-profileDraftsBtn.addEventListener("click", () => {
-  setActiveTab("drafts");
-  closeProfileMenu();
-});
-
-profileProfileBtn.addEventListener("click", () => {
-  setActiveTab("profile");
-  closeProfileMenu();
-});
-
-profileSettingsBtn.addEventListener("click", () => {
-  setActiveTab("settings");
-  closeProfileMenu();
-});
-
-refreshHistoryBtn.addEventListener("click", loadHistory);
-historyPlatformFilter.addEventListener("change", loadHistory);
-historyStatusFilter.addEventListener("change", loadHistory);
-historyDateFilter.addEventListener("change", loadHistory);
-
-connectLinkedInBtn.addEventListener("click", async () => {
-  try {
-    statusText.textContent = "Opening LinkedIn connect...";
-    const data = await api("/api/linkedin/connect/start", { method: "GET" });
-    window.location.href = data.authorization_url;
-  } catch (err) {
-    statusText.textContent = `LinkedIn connect failed: ${err.message}`;
-  }
-});
-
-connectTwitterBtn.addEventListener("click", async () => {
-  try {
-    statusText.textContent = "Opening Twitter connect...";
-    const data = await api("/api/twitter/connect/start", { method: "GET" });
-    window.location.href = data.authorization_url;
-  } catch (err) {
-    statusText.textContent = `Twitter connect failed: ${err.message}`;
-  }
-});
-
-connectCanvaBtn.addEventListener("click", async () => {
-  try {
-    statusText.textContent = "Opening Canva connect...";
-    const data = await api("/api/canva/connect/start", { method: "GET" });
-    window.location.href = data.authorization_url;
-  } catch (err) {
-    statusText.textContent = `Canva connect failed: ${err.message}`;
-  }
-});
-
-connectFacebookBtn.addEventListener("click", async () => {
-  try {
-    statusText.textContent = "Connecting Facebook...";
-    const data = await api("/api/facebook/connect/start", { method: "GET" });
-    window.location.href = data.authorization_url;
-  } catch (err) {
-    statusText.textContent = `Facebook connect failed: ${err.message}`;
-  }
-});
-
-tabButtons.forEach((btn) => {
-  btn.addEventListener("click", () => setActiveTab(btn.dataset.tab));
-});
-
-async function onGoogleLogin() {
-  try {
-    authState.hidden = false;
-    authState.textContent = "Redirecting to Google...";
-    await signInWithProvider("google");
-  } catch (err) {
-    authState.hidden = false;
-    authState.textContent = `Login failed: ${err.message}`;
+    setBanner(`${label} connected.`);
+    await loadSocial();
   }
 }
 
-async function onGithubLogin() {
-  try {
-    authState.hidden = false;
-    authState.textContent = "Redirecting to GitHub...";
-    await signInWithProvider("github");
-  } catch (err) {
-    authState.hidden = false;
-    authState.textContent = `GitHub login failed: ${err.message}`;
-  }
+async function signInWithProvider(provider) {
+  const { error } = await state.sbClient.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) throw error;
 }
 
-async function onEmailMagicLink(sourceInput = null) {
+async function sendMagicLink(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized || !normalized.includes("@")) throw new Error("Enter a valid email.");
+  const { error } = await state.sbClient.auth.signInWithOtp({ email: normalized });
+  if (error) throw error;
+}
+
+function handleSearchFilter() {
+  const query = refs.globalSearchInput.value.trim().toLowerCase();
+  const containers = refs.pages[state.activePage]?.querySelectorAll(".cards-list > *") || [];
+  containers.forEach((node) => {
+    const visible = !query || node.textContent.toLowerCase().includes(query);
+    node.hidden = !visible;
+  });
+}
+
+refs.navButtons.forEach((btn) => {
+  btn.addEventListener("click", () => setActivePage(btn.dataset.page));
+});
+
+refs.mobileMenuBtn.addEventListener("click", () => refs.body.classList.toggle("menu-open"));
+refs.globalSearchInput.addEventListener("input", handleSearchFilter);
+
+refs.googleLoginBtn.addEventListener("click", () => signInWithProvider("google").catch((e) => setBanner(`Login failed: ${e.message}`)));
+refs.githubLoginBtn.addEventListener("click", () => signInWithProvider("github").catch((e) => setBanner(`Login failed: ${e.message}`)));
+refs.loginGoogleMainBtn.addEventListener("click", () => signInWithProvider("google").catch((e) => setBanner(`Login failed: ${e.message}`)));
+refs.loginGithubMainBtn.addEventListener("click", () => signInWithProvider("github").catch((e) => setBanner(`Login failed: ${e.message}`)));
+refs.emailLoginBtn.addEventListener("click", async () => {
+  const email = window.prompt("Email for magic link:", "") || "";
   try {
-    let email = "";
-    if (sourceInput && sourceInput.value) {
-      email = sourceInput.value;
-    } else if (currentSession?.user?.email) {
-      email = currentSession.user.email;
-    } else {
-      email = window.prompt("Enter your email for magic link login:", "") || "";
-    }
-    authState.hidden = false;
-    authState.textContent = "Sending magic link...";
     await sendMagicLink(email);
-    authState.textContent = "Magic link sent. Check your email inbox.";
-  } catch (err) {
-    authState.hidden = false;
-    authState.textContent = `Email login failed: ${err.message}`;
+    setBanner("Magic link sent.");
+  } catch (e) {
+    setBanner(`Magic link failed: ${e.message}`);
   }
-}
-
-googleLoginBtn.addEventListener("click", onGoogleLogin);
-githubLoginBtn.addEventListener("click", onGithubLogin);
-emailLoginTopBtn.addEventListener("click", () => onEmailMagicLink(null));
-landingGoogleBtn.addEventListener("click", onGoogleLogin);
-landingGithubBtn.addEventListener("click", onGithubLogin);
-emailLoginBtn.addEventListener("click", () => onEmailMagicLink(emailLoginInput));
-emailLoginInput.addEventListener("keydown", (event) => {
+});
+refs.magicLinkSendBtn.addEventListener("click", async () => {
+  try {
+    await sendMagicLink(refs.magicEmailInput.value);
+    setBanner("Magic link sent.");
+  } catch (e) {
+    setBanner(`Magic link failed: ${e.message}`);
+  }
+});
+refs.magicEmailInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
-    onEmailMagicLink(emailLoginInput);
+    refs.magicLinkSendBtn.click();
   }
 });
-
-logoutBtn.addEventListener("click", async () => {
-  await sbClient.auth.signOut();
-  currentSession = null;
+refs.logoutBtn.addEventListener("click", async () => {
+  if (!state.sbClient) return;
+  await state.sbClient.auth.signOut();
+  state.session = null;
   setAuthedUI(false);
 });
 
-profileLogoutBtn.addEventListener("click", async () => {
-  await sbClient.auth.signOut();
-  currentSession = null;
-  setAuthedUI(false);
-});
-
-saveProfileBtn.addEventListener("click", async () => {
-  if (!currentSession) return;
+refs.clientForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
   try {
-    profileStatusText.textContent = "Saving profile...";
-    const data = {
-      full_name: profileFullNameInput.value.trim(),
-      company: profileCompanyInput.value.trim(),
-      role: profileRoleInput.value.trim(),
-      location: profileLocationInput.value.trim(),
-      website: profileWebsiteInput.value.trim(),
-      timezone: profileTimezoneInput.value.trim() || "Asia/Karachi",
-      bio: profileBioInput.value.trim(),
-    };
-    const { data: updated, error } = await sbClient.auth.updateUser({ data });
-    if (error) throw error;
-    if (updated?.user) {
-      currentSession = { ...currentSession, user: updated.user };
-      applyProfileFromSession({ user: updated.user });
-    }
-    profileStatusText.textContent = "Profile updated.";
-  } catch (err) {
-    profileStatusText.textContent = `Save failed: ${err.message}`;
-  }
-});
-
-changePasswordBtn.addEventListener("click", async () => {
-  if (!currentSession) return;
-  const pass = newPasswordInput.value.trim();
-  const confirm = confirmPasswordInput.value.trim();
-  if (pass.length < 8) {
-    securityStatusText.textContent = "Password must be at least 8 characters.";
-    return;
-  }
-  if (pass !== confirm) {
-    securityStatusText.textContent = "Password confirmation does not match.";
-    return;
-  }
-  try {
-    securityStatusText.textContent = "Updating password...";
-    const { error } = await sbClient.auth.updateUser({ password: pass });
-    if (error) throw error;
-    newPasswordInput.value = "";
-    confirmPasswordInput.value = "";
-    securityStatusText.textContent = "Password updated successfully.";
-  } catch (err) {
-    securityStatusText.textContent = `Password update failed: ${err.message}`;
-  }
-});
-
-sendResetEmailBtn.addEventListener("click", async () => {
-  if (!currentSession?.user?.email) return;
-  try {
-    securityStatusText.textContent = "Sending reset email...";
-    const { error } = await sbClient.auth.resetPasswordForEmail(currentSession.user.email, {
-      redirectTo: window.location.origin,
+    await api("/api/clients", {
+      method: "POST",
+      body: JSON.stringify({
+        business_name: refs.clientBusinessName.value,
+        industry: refs.clientIndustry.value,
+        social_handles: refs.clientHandles.value,
+        website: refs.clientWebsite.value,
+        brand_voice: refs.clientBrandVoice.value,
+        keywords: refs.clientKeywords.value,
+        topics_to_avoid: refs.clientAvoid.value,
+        target_audience: refs.clientAudience.value,
+        whatsapp_number: refs.clientWhatsapp.value,
+        logo_url: refs.clientLogo.value,
+        notes: refs.clientNotes.value,
+      }),
     });
-    if (error) throw error;
-    securityStatusText.textContent = "Reset email sent.";
-  } catch (err) {
-    securityStatusText.textContent = `Reset email failed: ${err.message}`;
+    refs.clientForm.reset();
+    setBanner("Client saved.");
+    await Promise.all([loadClients(), loadDashboard()]);
+  } catch (e) {
+    setBanner(`Client save failed: ${e.message}`);
   }
 });
 
-document.addEventListener("click", (event) => {
-  if (!profileMenuOpen) return;
+refs.clientsList.addEventListener("click", async (event) => {
   const target = event.target;
-  if (!(target instanceof Node)) return;
-  if (profileMenu.contains(target) || userChip.contains(target)) return;
-  closeProfileMenu();
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closeProfileMenu();
+  if (!(target instanceof HTMLElement)) return;
+  if (!target.classList.contains("onboarding-btn")) return;
+  const clientId = Number(target.dataset.clientId || 0);
+  if (!clientId) return;
+  try {
+    await api(`/api/clients/${clientId}/onboarding/complete`, { method: "POST" });
+    setBanner("Onboarding status updated.");
+    await loadClients();
+  } catch (e) {
+    setBanner(`Onboarding update failed: ${e.message}`);
   }
 });
+
+refs.calendarForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const client = selectedClientFrom(refs.calendarClientSelect);
+  if (!client) {
+    setBanner("Select a client first.");
+    return;
+  }
+  const platforms = selectedCheckboxValues(".calendarPlatform");
+  try {
+    setBanner("Generating 7-day calendar...");
+    await api("/api/content-calendar/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: client.id,
+        content_seed: refs.calendarSeedInput.value,
+        platforms,
+        days: 7,
+      }),
+    });
+    setBanner("7-day calendar generated.");
+    await Promise.all([loadDrafts(), loadDashboard()]);
+  } catch (e) {
+    setBanner(`Calendar generation failed: ${e.message}`);
+  }
+});
+
+refs.generatorForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const client = selectedClientFrom(refs.generatorClientSelect);
+  if (!client) {
+    setBanner("Select a client first.");
+    return;
+  }
+  const platforms = selectedCheckboxValues(".generatorPlatform");
+  try {
+    setBanner("Generating drafts...");
+    await api("/api/agent/run", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: client.id,
+        content: refs.generatorContentInput.value,
+        business_name: client.business_name,
+        niche: client.industry,
+        audience: client.target_audience,
+        tone: client.brand_voice,
+        region: "Global",
+        platforms,
+      }),
+    });
+    setBanner("Drafts generated.");
+    await Promise.all([loadDrafts(), loadDashboard()]);
+  } catch (e) {
+    setBanner(`Generation failed: ${e.message}`);
+  }
+});
+
+refs.draftsList.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const card = target.closest(".post-card");
+  if (!card) return;
+  const postId = Number(card.dataset.postId || 0);
+  if (!postId) return;
+  const editor = card.querySelector(".draft-editor");
+  const scheduleInput = card.querySelector(".schedule-input");
+  const editedText = editor instanceof HTMLTextAreaElement ? editor.value : "";
+
+  try {
+    if (target.classList.contains("save-btn")) {
+      await api(`/api/posts/${postId}`, { method: "PATCH", body: JSON.stringify({ edited_text: editedText }) });
+      setBanner("Draft saved.");
+      await loadDrafts();
+      return;
+    }
+    if (target.classList.contains("schedule-btn")) {
+      const value = scheduleInput instanceof HTMLInputElement ? scheduleInput.value : "";
+      if (!value) throw new Error("Select schedule date/time first.");
+      await api(`/api/posts/${postId}/schedule`, { method: "PATCH", body: JSON.stringify({ scheduled_at: new Date(value).toISOString() }) });
+      setBanner("Post scheduled.");
+      await Promise.all([loadDrafts(), loadDashboard()]);
+      return;
+    }
+    if (target.classList.contains("approval-btn")) {
+      await api(`/api/posts/${postId}/request-approval`, { method: "POST" });
+      setBanner("WhatsApp approval request sent.");
+      return;
+    }
+    if (target.classList.contains("visual-btn")) {
+      const client = selectedClientFrom(refs.generatorClientSelect);
+      const templateId = refs.canvaTemplateSelect.value;
+      await api(`/api/posts/${postId}/generate-visual`, {
+        method: "POST",
+        body: JSON.stringify({
+          template_id: templateId,
+          caption_hint: editedText.slice(0, 220),
+          brand_name: client?.business_name || "",
+        }),
+      });
+      setBanner("Visual generated and attached.");
+      return;
+    }
+    if (target.classList.contains("publish-btn")) {
+      await api(`/api/posts/${postId}/publish`, { method: "POST", body: JSON.stringify({ confirm: true }) });
+      card.classList.add("success-flash");
+      setBanner("Post published.");
+      await Promise.all([loadDrafts(), loadDashboard(), loadAnalytics()]);
+    }
+  } catch (e) {
+    setBanner(`Action failed: ${e.message}`);
+  }
+});
+
+refs.paymentForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const client = selectedClientFrom(refs.paymentClientSelect);
+  if (!client) {
+    setBanner("Select a client for subscription.");
+    return;
+  }
+  try {
+    await api("/api/payments", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: client.id,
+        plan_name: refs.paymentPlanName.value,
+        subscription_status: refs.paymentStatus.value,
+        amount: Number(refs.paymentAmount.value || 0),
+        currency: refs.paymentCurrency.value || "USD",
+        due_date: refs.paymentDueDate.value ? new Date(refs.paymentDueDate.value).toISOString() : null,
+        auto_pause_if_unpaid: refs.paymentAutoPause.checked,
+      }),
+    });
+    setBanner("Subscription saved.");
+    await Promise.all([loadPayments(), loadDashboard(), loadClients()]);
+  } catch (e) {
+    setBanner(`Subscription save failed: ${e.message}`);
+  }
+});
+
+refs.paymentsList.addEventListener("click", async (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  if (!target.classList.contains("update-payment-btn")) return;
+  const card = target.closest(".post-card");
+  if (!card) return;
+  const paymentId = Number(card.dataset.paymentId || 0);
+  const select = card.querySelector(".payment-status-select");
+  const status = select instanceof HTMLSelectElement ? select.value : "";
+  if (!paymentId || !status) return;
+  try {
+    await api(`/api/payments/${paymentId}`, { method: "PATCH", body: JSON.stringify({ subscription_status: status }) });
+    setBanner("Payment status updated.");
+    await Promise.all([loadPayments(), loadDashboard(), loadClients()]);
+  } catch (e) {
+    setBanner(`Payment update failed: ${e.message}`);
+  }
+});
+
+refs.refreshAnalyticsBtn.addEventListener("click", () => loadAnalytics().catch((e) => setBanner(`Analytics failed: ${e.message}`)));
+refs.analyticsClientSelect.addEventListener("change", () => loadAnalytics().catch((e) => setBanner(`Analytics failed: ${e.message}`)));
+refs.analyticsDaysSelect.addEventListener("change", () => loadAnalytics().catch((e) => setBanner(`Analytics failed: ${e.message}`)));
+
+refs.connectLinkedInBtn.addEventListener("click", () => connectPlatform("/api/linkedin/connect/start", "LinkedIn").catch((e) => setBanner(e.message)));
+refs.connectInstagramBtn.addEventListener("click", () => connectPlatform("/api/instagram/connect/start", "Instagram").catch((e) => setBanner(e.message)));
+refs.connectFacebookBtn.addEventListener("click", () => connectPlatform("/api/facebook/connect/start", "Facebook").catch((e) => setBanner(e.message)));
+refs.connectCanvaBtn.addEventListener("click", () => connectPlatform("/api/canva/connect/start", "Canva").catch((e) => setBanner(e.message)));
+refs.canvaTemplateSelect.addEventListener("change", renderTemplatePreview);
 
 async function bootstrap() {
   const params = new URLSearchParams(window.location.search);
   const waToken = params.get("wa_approval_token");
   const waAction = params.get("wa_action");
   if (waToken && waAction) {
-    authState.hidden = false;
     try {
-      authState.textContent = "Applying WhatsApp approval action...";
+      setBanner("Applying WhatsApp approval action...");
       const response = await apiPublic(
         `/api/whatsapp/approval/resolve?token=${encodeURIComponent(waToken)}&action=${encodeURIComponent(waAction)}`,
         { method: "GET" },
       );
-      authState.textContent = response.message || "Approval status updated.";
-    } catch (err) {
-      authState.textContent = `Approval link failed: ${err.message}`;
+      setBanner(response.message || "Approval action completed.");
+    } catch (e) {
+      setBanner(`Approval action failed: ${e.message}`);
     }
     params.delete("wa_approval_token");
     params.delete("wa_action");
@@ -1056,78 +729,45 @@ async function bootstrap() {
   }
 
   if (!supabaseLib || typeof supabaseLib.createClient !== "function") {
-    authState.textContent = "Supabase library failed to load. Refresh and try again.";
+    setBanner("Supabase library failed to load.");
     return;
   }
 
-  sbClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-  sbClient.auth.onAuthStateChange(async (_event, session) => {
-    currentSession = session;
-    if (session) {
-      setAuthedUI(true, session.user?.email || "", session.user?.id || "");
-      applyProfileFromSession(session);
-      await refreshAllData();
-    } else {
+  state.sbClient = supabaseLib.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  state.sbClient.auth.onAuthStateChange(async (_event, session) => {
+    state.session = session;
+    if (!session) {
       setAuthedUI(false);
+      return;
+    }
+    setAuthedUI(true, session.user?.email || "");
+    try {
+      await refreshAll();
+    } catch (e) {
+      setBanner(`Load failed: ${e.message}`);
     }
   });
 
-  const { data } = await sbClient.auth.getSession();
-  currentSession = data.session;
-
-  if (!currentSession) {
+  const { data } = await state.sbClient.auth.getSession();
+  state.session = data.session;
+  if (!state.session) {
     setAuthedUI(false);
-    refreshIcons();
     return;
   }
 
-  const email = currentSession.user?.email || "";
-  setAuthedUI(true, email, currentSession.user?.id || "");
-  applyProfileFromSession(currentSession);
-  if (!toneInput.value) toneInput.value = "Professional";
-  if (!regionInput.value) regionInput.value = "Pakistan";
+  setAuthedUI(true, state.session.user?.email || "");
+  await refreshAll();
 
-  await refreshAllData();
-
-  if (params.get("linkedin") === "connected") {
-    statusText.textContent = "LinkedIn connected successfully.";
-    await loadSocial();
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("linkedin") === "error") {
-    statusText.textContent = `LinkedIn error: ${params.get("message") || "Unknown"}`;
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("twitter") === "connected") {
-    statusText.textContent = "Twitter connected successfully.";
-    await loadSocial();
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("twitter") === "error") {
-    statusText.textContent = `Twitter error: ${params.get("message") || "Unknown"}`;
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("canva") === "connected") {
-    statusText.textContent = "Canva connected successfully.";
-    await loadSocial();
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("canva") === "error") {
-    statusText.textContent = `Canva error: ${params.get("message") || "Unknown"}`;
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("facebook") === "connected") {
-    statusText.textContent = "Facebook connected successfully.";
-    await loadSocial();
-    window.history.replaceState({}, "", window.location.pathname);
-  }
-  if (params.get("facebook") === "error") {
-    statusText.textContent = `Facebook error: ${params.get("message") || "Unknown"}`;
-    window.history.replaceState({}, "", window.location.pathname);
+  if (params.get("linkedin") === "connected") setBanner("LinkedIn connected.");
+  if (params.get("instagram") === "connected") setBanner("Instagram connected.");
+  if (params.get("facebook") === "connected") setBanner("Facebook connected.");
+  if (params.get("canva") === "connected") setBanner("Canva connected.");
+  if (params.get("twitter") === "connected") setBanner("Twitter connected.");
+  if (params.get("linkedin") === "error" || params.get("instagram") === "error" || params.get("facebook") === "error" || params.get("canva") === "error" || params.get("twitter") === "error") {
+    setBanner(params.get("message") || "OAuth connection failed.");
   }
 }
 
-bootstrap().catch((err) => {
-  authState.textContent = `Startup error: ${err.message}`;
+bootstrap().catch((e) => {
+  setBanner(`Startup error: ${e.message}`);
 });

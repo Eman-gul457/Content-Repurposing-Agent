@@ -3,290 +3,218 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI Content SaaS</title>
+  <title>Social Media AI Agent</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="config.js"></script>
 </head>
 <body>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
   <header class="topbar">
     <div class="topbar-left">
-      <div class="logo-mark">AI</div>
-      <div class="logo-text">AI Agent</div>
+      <button id="mobileMenuBtn" class="icon-btn" type="button">☰</button>
+      <div class="logo-pill">AI Agent Pro</div>
+      <input id="globalSearchInput" type="search" class="search-input" placeholder="Search clients, posts, payments..." />
     </div>
     <div class="topbar-right">
-      <button id="sidebarToggle" class="icon-btn ghost" type="button" hidden aria-label="Toggle sidebar">
-        <i data-lucide="menu"></i>
-      </button>
+      <button id="notifyBtn" class="icon-btn" type="button">🔔 <span id="notifyCount" class="badge">0</span></button>
       <button id="googleLoginBtn" class="ghost" type="button">Google</button>
       <button id="githubLoginBtn" class="ghost" type="button">GitHub</button>
-      <button id="emailLoginTopBtn" class="ghost" type="button">Email Link</button>
-      <button id="connectAccountsBtn" class="secondary" type="button" hidden>Connect Accounts</button>
-      <button id="topRunBtn" class="cta" type="button" hidden>Run Agent</button>
-      <button id="topSettingsBtn" class="icon-btn ghost" type="button" hidden aria-label="Settings">
-        <i data-lucide="settings"></i>
-      </button>
+      <button id="emailLoginBtn" class="ghost" type="button">Magic Link</button>
       <button id="logoutBtn" class="ghost" type="button" hidden>Logout</button>
-      <div id="userChip" class="user-chip" hidden>
-        <span id="userInitial">U</span>
-      </div>
-      <div id="profileMenu" class="profile-menu" hidden>
-        <div class="profile-menu-head">
-          <div id="profileMenuInitial" class="profile-avatar">U</div>
-          <div>
-            <div id="profileMenuEmail" class="profile-email">Not logged in</div>
-            <div id="profileMenuUserId" class="profile-userid">-</div>
-          </div>
-        </div>
-        <div class="profile-menu-actions">
-          <button id="profileDashboardBtn" class="ghost profile-action" type="button">Open Dashboard</button>
-          <button id="profileDraftsBtn" class="ghost profile-action" type="button">Open Drafts</button>
-          <button id="profileProfileBtn" class="ghost profile-action" type="button">Open Profile</button>
-          <button id="profileSettingsBtn" class="ghost profile-action" type="button">Open Settings</button>
-          <button id="profileLogoutBtn" class="warn profile-action" type="button">Logout</button>
-        </div>
-      </div>
+      <button id="profileBtn" class="profile-btn" type="button" hidden>U</button>
     </div>
   </header>
 
   <div class="app-shell">
-    <aside id="appSidebar" class="sidebar" hidden>
-      <nav id="tabNav" class="tab-nav" hidden>
-        <button class="tab-btn active" data-tab="dashboard" type="button"><i data-lucide="layout-dashboard"></i>Dashboard</button>
-        <button class="tab-btn" data-tab="drafts" type="button"><i data-lucide="file-pen-line"></i>Drafts</button>
-        <button class="tab-btn" data-tab="schedules" type="button"><i data-lucide="calendar-clock"></i>Schedules</button>
-        <button class="tab-btn" data-tab="history" type="button"><i data-lucide="history"></i>History</button>
-        <button class="tab-btn" data-tab="research" type="button"><i data-lucide="search"></i>Research</button>
-        <button class="tab-btn" data-tab="profile" type="button"><i data-lucide="user-round"></i>Profile</button>
-        <button class="tab-btn" data-tab="settings" type="button"><i data-lucide="settings-2"></i>Settings</button>
+    <aside id="sidebar" class="sidebar">
+      <nav class="nav-list">
+        <button class="nav-btn active" data-page="dashboard" type="button">Dashboard</button>
+        <button class="nav-btn" data-page="clients" type="button">Clients</button>
+        <button class="nav-btn" data-page="calendar" type="button">Content Calendar</button>
+        <button class="nav-btn" data-page="generator" type="button">Post Generator</button>
+        <button class="nav-btn" data-page="analytics" type="button">Analytics</button>
+        <button class="nav-btn" data-page="payments" type="button">Payments</button>
+        <button class="nav-btn" data-page="settings" type="button">Settings</button>
       </nav>
     </aside>
 
-    <main class="container">
-      <div id="authState" class="auth-banner">Not logged in</div>
+    <main class="main-content">
+      <div id="authBanner" class="auth-banner">Not logged in</div>
 
-      <section id="publicLanding" class="public-landing" aria-label="Login">
-        <div class="login-card">
-          <div class="login-head">
-            <div class="logo-mark large">AI</div>
-            <div>
-              <h1>Login</h1>
-              <p class="muted">Sign in to manage content generation, approval, and publishing.</p>
-            </div>
+      <section id="loginSection" class="login-section">
+        <div class="card login-card">
+          <h1>Social Media AI Agent</h1>
+          <p>Premium AI workflow for business content, approvals, scheduling, analytics, and payments.</p>
+          <div class="row">
+            <button id="loginGoogleMainBtn" class="cta" type="button">Continue with Google</button>
+            <button id="loginGithubMainBtn" class="secondary" type="button">Continue with GitHub</button>
           </div>
-          <div class="landing-actions">
-            <button id="landingGoogleBtn" class="cta" type="button">Continue with Google</button>
-            <button id="landingGithubBtn" class="ghost" type="button">Continue with GitHub</button>
-          </div>
-          <div class="landing-email-row">
-            <input id="emailLoginInput" type="text" placeholder="Email for magic link" />
-            <button id="emailLoginBtn" class="secondary" type="button">Send Magic Link</button>
-          </div>
-          <div class="landing-value-grid">
-            <article class="landing-value-card">
-              <h3>One workflow</h3>
-              <p>Research, draft, approve, schedule, and publish in one place.</p>
-            </article>
-            <article class="landing-value-card">
-              <h3>Approval control</h3>
-              <p>Nothing gets posted unless your team approves it first.</p>
-            </article>
-            <article class="landing-value-card">
-              <h3>Built for teams</h3>
-              <p>Designed for agencies, creators, and in-house marketing teams.</p>
-            </article>
+          <div class="row">
+            <input id="magicEmailInput" type="email" placeholder="Email for magic link" />
+            <button id="magicLinkSendBtn" class="secondary" type="button">Send Link</button>
           </div>
         </div>
       </section>
 
       <section id="page-dashboard" class="page-view">
-        <header class="hero card fade-in">
-          <h1>AI Content Command Center</h1>
-          <p>Research, create, approve, schedule, and publish from one professional workflow.</p>
-        </header>
-
-        <div class="dashboard-grid">
-          <section class="card fade-in-up" id="socialSection" hidden>
-            <h2 class="section-title"><i data-lucide="link-2"></i> Social Connections</h2>
-            <div class="social-item">
-              <div class="social-label-wrap">
-                <strong>LinkedIn</strong>
-                <span id="linkedinStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
-              </div>
-              <button id="connectLinkedInBtn" class="secondary" type="button">Connect LinkedIn</button>
-            </div>
-            <div class="social-item">
-              <div class="social-label-wrap">
-                <strong>Twitter/X</strong>
-                <span id="twitterStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
-              </div>
-              <button id="connectTwitterBtn" class="secondary" type="button">Connect Twitter</button>
-            </div>
-            <div class="social-item">
-              <div class="social-label-wrap">
-                <strong>Canva</strong>
-                <span id="canvaStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
-              </div>
-              <button id="connectCanvaBtn" class="secondary" type="button">Connect Canva</button>
-            </div>
-            <div class="social-item">
-              <div class="social-label-wrap">
-                <strong>Facebook</strong>
-                <span id="facebookStatus" class="status-badge disconnected"><span class="dot"></span>Not connected</span>
-              </div>
-              <button id="connectFacebookBtn" class="secondary" type="button">Connect Facebook</button>
-            </div>
-            <p class="muted">Twitter is available in free manual mode. Canva powers template workflow. Facebook posting is enabled via your configured page token.</p>
-          </section>
-
-          <section class="card fade-in-up" id="generatorSection" hidden>
-            <h2 class="section-title"><i data-lucide="brain"></i> Run AI Agent</h2>
-            <div class="profile-grid">
-              <input id="businessNameInput" type="text" placeholder="Business name" />
-              <input id="nicheInput" type="text" placeholder="Niche (e.g. solar energy, healthcare SaaS)" />
-              <input id="audienceInput" type="text" placeholder="Audience (e.g. founders, doctors, students)" />
-              <input id="toneInput" type="text" placeholder="Tone (e.g. professional, bold, friendly)" />
-              <input id="regionInput" type="text" placeholder="Region (e.g. Pakistan, GCC, Global)" />
-              <select id="languagePrefInput">
-                <option value="english_urdu" selected>English + Urdu</option>
-                <option value="english">English</option>
-                <option value="urdu">Urdu</option>
-              </select>
-            </div>
-            <div class="platform-row">
-              <label><input type="checkbox" name="platform" value="linkedin" checked /> LinkedIn</label>
-              <label><input type="checkbox" name="platform" value="twitter" checked /> Twitter/X</label>
-              <label><input type="checkbox" name="platform" value="facebook" checked /> Facebook</label>
-              <label><input type="checkbox" name="platform" value="blog_summary" checked /> Blog Summary</label>
-            </div>
-            <textarea id="contentInput" placeholder="Enter topic, blog, or product description"></textarea>
-            <div class="row">
-              <button id="generateBtn" class="cta" type="button">Run AI Agent</button>
-              <span id="statusText"></span>
-            </div>
-          </section>
+        <h2 class="page-title">Dashboard</h2>
+        <div class="stats-grid">
+          <article class="stat-card">
+            <p>Total Clients</p>
+            <h3 id="statClients">0</h3>
+          </article>
+          <article class="stat-card">
+            <p>Scheduled Posts</p>
+            <h3 id="statScheduled">0</h3>
+          </article>
+          <article class="stat-card">
+            <p>Engagement Analytics</p>
+            <h3 id="statEngagement">0</h3>
+          </article>
+          <article class="stat-card">
+            <p>Revenue</p>
+            <h3 id="statRevenue">$0</h3>
+          </article>
         </div>
-        <section class="card fade-in-up" id="recentPlansSection" hidden>
-          <h2 class="section-title"><i data-lucide="sparkles"></i> Recent Plans</h2>
-          <div id="recentPlansList"></div>
-        </section>
+        <div class="card">
+          <h3>Automation Health</h3>
+          <p id="dashboardHealthText" class="muted">Ready</p>
+        </div>
       </section>
 
-      <section id="page-drafts" class="page-view" hidden>
-        <section class="card fade-in-up" id="draftsSection" hidden>
-          <h2 class="section-title"><i data-lucide="file-text"></i> Drafts</h2>
-          <p class="muted">Generated posts waiting for approval and publishing.</p>
-          <div id="draftsList"></div>
-        </section>
+      <section id="page-clients" class="page-view" hidden>
+        <h2 class="page-title">Client Management</h2>
+        <div class="grid-2">
+          <form id="clientForm" class="card form-grid">
+            <h3>Client Intake Questionnaire</h3>
+            <input id="clientBusinessName" type="text" placeholder="Business name" required />
+            <input id="clientIndustry" type="text" placeholder="Industry" />
+            <input id="clientHandles" type="text" placeholder="Social media handles" />
+            <input id="clientWebsite" type="text" placeholder="Website" />
+            <input id="clientBrandVoice" type="text" placeholder="Brand voice" />
+            <input id="clientKeywords" type="text" placeholder="Keywords" />
+            <input id="clientAvoid" type="text" placeholder="Topics to avoid" />
+            <input id="clientAudience" type="text" placeholder="Target audience" />
+            <input id="clientWhatsapp" type="text" placeholder="WhatsApp number" />
+            <input id="clientLogo" type="text" placeholder="Logo URL" />
+            <textarea id="clientNotes" placeholder="Notes"></textarea>
+            <button class="cta" type="submit">Save Client</button>
+          </form>
+          <div class="card">
+            <h3>Clients</h3>
+            <div id="clientsList" class="cards-list"></div>
+          </div>
+        </div>
       </section>
 
-      <section id="page-history" class="page-view" hidden>
-        <section class="card fade-in-up" id="historySection" hidden>
-          <h2 class="section-title"><i data-lucide="history"></i> History</h2>
-          <div class="row filters-row">
-            <select id="historyPlatformFilter">
-              <option value="all">All Platforms</option>
-              <option value="linkedin">LinkedIn</option>
-              <option value="twitter">Twitter/X</option>
-              <option value="facebook">Facebook</option>
-              <option value="blog_summary">Blog Summary</option>
+      <section id="page-calendar" class="page-view" hidden>
+        <h2 class="page-title">Content Calendar</h2>
+        <div class="grid-2">
+          <form id="calendarForm" class="card form-grid">
+            <h3>Generate 7 Days Automatically</h3>
+            <select id="calendarClientSelect"></select>
+            <textarea id="calendarSeedInput" placeholder="Campaign idea, offer, or content direction" required></textarea>
+            <label><input type="checkbox" class="calendarPlatform" value="linkedin" checked /> LinkedIn</label>
+            <label><input type="checkbox" class="calendarPlatform" value="instagram" checked /> Instagram</label>
+            <label><input type="checkbox" class="calendarPlatform" value="facebook" checked /> Facebook</label>
+            <button class="cta" type="submit">Generate Calendar</button>
+          </form>
+          <div class="card">
+            <h3>Scheduled Posts</h3>
+            <div id="calendarPostsList" class="cards-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-generator" class="page-view" hidden>
+        <h2 class="page-title">Post Generator</h2>
+        <div class="grid-2">
+          <form id="generatorForm" class="card form-grid">
+            <h3>AI Caption Generator</h3>
+            <select id="generatorClientSelect"></select>
+            <textarea id="generatorContentInput" placeholder="Write your post idea or campaign brief" required></textarea>
+            <label><input type="checkbox" class="generatorPlatform" value="linkedin" checked /> LinkedIn</label>
+            <label><input type="checkbox" class="generatorPlatform" value="instagram" checked /> Instagram</label>
+            <label><input type="checkbox" class="generatorPlatform" value="facebook" checked /> Facebook</label>
+            <select id="canvaTemplateSelect"></select>
+            <div id="canvaTemplatePreview" class="preview-card"></div>
+            <button class="cta" type="submit">Generate Drafts</button>
+          </form>
+          <div class="card">
+            <h3>Post Preview</h3>
+            <div id="previewCard" class="preview-card">No draft generated yet.</div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Draft Workflow</h3>
+          <div id="draftsList" class="cards-list"></div>
+        </div>
+      </section>
+
+      <section id="page-analytics" class="page-view" hidden>
+        <h2 class="page-title">Analytics Dashboard</h2>
+        <div class="card form-inline">
+          <select id="analyticsClientSelect"></select>
+          <select id="analyticsDaysSelect">
+            <option value="7">Last 7 days</option>
+            <option value="14" selected>Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+          <button id="refreshAnalyticsBtn" class="secondary" type="button">Refresh Analytics</button>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card"><p>Likes</p><h3 id="analyticsLikes">0</h3></article>
+          <article class="stat-card"><p>Shares</p><h3 id="analyticsShares">0</h3></article>
+          <article class="stat-card"><p>Clicks</p><h3 id="analyticsClicks">0</h3></article>
+          <article class="stat-card"><p>Follower Growth</p><h3 id="analyticsFollowers">0</h3></article>
+        </div>
+        <div class="card">
+          <canvas id="analyticsChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <section id="page-payments" class="page-view" hidden>
+        <h2 class="page-title">Payments</h2>
+        <div class="grid-2">
+          <form id="paymentForm" class="card form-grid">
+            <h3>Add Subscription</h3>
+            <select id="paymentClientSelect"></select>
+            <input id="paymentPlanName" type="text" placeholder="Plan name" value="Starter" />
+            <input id="paymentAmount" type="number" step="0.01" placeholder="Amount" />
+            <input id="paymentCurrency" type="text" placeholder="Currency" value="USD" />
+            <select id="paymentStatus">
+              <option value="active">active</option>
+              <option value="past_due">past_due</option>
+              <option value="unpaid">unpaid</option>
+              <option value="paused">paused</option>
+              <option value="cancelled">cancelled</option>
             </select>
-            <select id="historyStatusFilter">
-              <option value="all">All Statuses</option>
-              <option value="posted">Published</option>
-              <option value="failed">Failed</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="draft">Draft</option>
-            </select>
-            <input id="historyDateFilter" type="date" />
-            <button id="refreshHistoryBtn" class="ghost" type="button">Refresh</button>
+            <input id="paymentDueDate" type="datetime-local" />
+            <label><input id="paymentAutoPause" type="checkbox" checked /> Auto pause if unpaid</label>
+            <button class="cta" type="submit">Save Subscription</button>
+          </form>
+          <div class="card">
+            <h3>Payment Tracking</h3>
+            <div id="paymentsList" class="cards-list"></div>
           </div>
-          <div id="historyList"></div>
-        </section>
-      </section>
-
-      <section id="page-schedules" class="page-view" hidden>
-        <section class="card fade-in-up" id="schedulesSection" hidden>
-          <h2 class="section-title"><i data-lucide="calendar-clock"></i> Scheduled Posts</h2>
-          <div id="schedulesList"></div>
-        </section>
-        <section class="card fade-in-up" id="plansSection" hidden>
-          <h2 class="section-title"><i data-lucide="calendar-days"></i> Content Plans</h2>
-          <div id="plansList"></div>
-        </section>
-      </section>
-
-      <section id="page-research" class="page-view" hidden>
-        <section class="card fade-in-up" id="researchSection" hidden>
-          <h2 class="section-title"><i data-lucide="search"></i> Research (Daily max: 5)</h2>
-          <div id="researchList"></div>
-        </section>
-      </section>
-
-      <section id="page-profile" class="page-view" hidden>
-        <section class="profile-hero card fade-in-up" id="profileSection" hidden>
-          <div class="profile-cover"></div>
-          <div class="profile-main">
-            <div id="profileBigInitial" class="profile-big-avatar">U</div>
-            <div class="profile-main-text">
-              <h2 id="profileDisplayName">Your Profile</h2>
-              <p id="profileDisplayEmail" class="muted">Not logged in</p>
-              <div class="profile-badges">
-                <span class="profile-badge">AI Agent User</span>
-                <span class="profile-badge">Timezone: Asia/Karachi</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="card fade-in-up" id="profileDetailsSection" hidden>
-          <h2 class="section-title"><i data-lucide="user-round"></i> Public Profile</h2>
-          <div class="profile-form-grid">
-            <input id="profileFullNameInput" type="text" placeholder="Full name" />
-            <input id="profileCompanyInput" type="text" placeholder="Company / Business name" />
-            <input id="profileRoleInput" type="text" placeholder="Role (e.g. Founder, Marketer)" />
-            <input id="profileLocationInput" type="text" placeholder="Location (e.g. Karachi, Pakistan)" />
-            <input id="profileWebsiteInput" type="text" placeholder="Website URL" />
-            <input id="profileTimezoneInput" type="text" placeholder="Timezone" value="Asia/Karachi" />
-          </div>
-          <textarea id="profileBioInput" placeholder="About you"></textarea>
-          <div class="row">
-            <button id="saveProfileBtn" class="cta" type="button">Save Profile</button>
-            <span id="profileStatusText" class="muted"></span>
-          </div>
-        </section>
-
-        <section class="card fade-in-up" id="securitySection" hidden>
-          <h2 class="section-title"><i data-lucide="shield-check"></i> Security</h2>
-          <div class="security-grid">
-            <input id="newPasswordInput" type="password" placeholder="New password (min 8 characters)" />
-            <input id="confirmPasswordInput" type="password" placeholder="Confirm new password" />
-          </div>
-          <div class="row">
-            <button id="changePasswordBtn" class="secondary" type="button">Change Password</button>
-            <button id="sendResetEmailBtn" class="ghost" type="button">Send Reset Email</button>
-            <span id="securityStatusText" class="muted"></span>
-          </div>
-        </section>
+        </div>
       </section>
 
       <section id="page-settings" class="page-view" hidden>
-        <section class="card fade-in-up" id="settingsSection" hidden>
-          <h2 class="section-title"><i data-lucide="settings"></i> Settings</h2>
+        <h2 class="page-title">Settings</h2>
+        <div class="card">
+          <h3>Connect Social Accounts</h3>
           <div class="settings-grid">
-            <div class="settings-item">
-              <label>Theme</label>
-              <input type="text" value="Light Professional" disabled />
-              <small class="muted">Standard interface for clean SaaS workflows.</small>
-            </div>
-            <div class="settings-item">
-              <label>Default Timezone</label>
-              <input id="settingsTimezoneMirror" type="text" value="Asia/Karachi" disabled />
-              <small class="muted">Change timezone from the Profile page.</small>
-            </div>
+            <div><strong>LinkedIn</strong><p id="linkedinStatus" class="muted">Not connected</p><button id="connectLinkedInBtn" class="secondary" type="button">Connect</button></div>
+            <div><strong>Instagram</strong><p id="instagramStatus" class="muted">Not connected</p><button id="connectInstagramBtn" class="secondary" type="button">Connect</button></div>
+            <div><strong>Facebook</strong><p id="facebookStatus" class="muted">Not connected</p><button id="connectFacebookBtn" class="secondary" type="button">Connect</button></div>
+            <div><strong>Canva</strong><p id="canvaStatus" class="muted">Not connected</p><button id="connectCanvaBtn" class="secondary" type="button">Connect</button></div>
           </div>
-        </section>
+        </div>
       </section>
     </main>
   </div>

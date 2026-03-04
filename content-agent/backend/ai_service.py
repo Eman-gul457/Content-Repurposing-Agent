@@ -3,9 +3,10 @@ import requests
 from config.settings import settings
 
 FALLBACK_MODELS = [settings.groq_model, "llama-3.1-8b-instant", "llama-3.3-70b-versatile"]
-SUPPORTED_PLATFORMS = ["linkedin", "twitter", "facebook", "blog_summary"]
+SUPPORTED_PLATFORMS = ["linkedin", "instagram", "twitter", "facebook", "blog_summary"]
 PLATFORM_PROMPTS = {
     "linkedin": "Write one professional LinkedIn post with strong hook, 3 key points, and CTA.",
+    "instagram": "Write one Instagram caption with hook, short storytelling body, and CTA plus 5 relevant hashtags.",
     "twitter": "Write one X/Twitter thread (4-6 tweets) in numbered format 1/,2/.",
     "facebook": "Write one Facebook post in conversational brand tone with CTA.",
     "blog_summary": "Write a concise blog-style summary with key takeaways in professional tone.",

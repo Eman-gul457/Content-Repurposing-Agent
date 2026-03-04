@@ -6,7 +6,7 @@ import hmac
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
@@ -224,10 +224,12 @@ def resolve_whatsapp_approval(db: Session, token: str, action: str) -> dict[str,
     now = datetime.utcnow()
     action_norm = (action or "").strip().lower()
     if action_norm == "approve":
-        post.status = PostStatus.approved.value
+        post.status = PostStatus.scheduled.value
+        if not post.scheduled_at:
+            post.scheduled_at = datetime.utcnow() + timedelta(minutes=10)
         approval.status = "approved"
-        approval.resolution_note = "Approved via WhatsApp link"
-        message = "Draft approved successfully."
+        approval.resolution_note = "Approved via WhatsApp link and moved to scheduler"
+        message = "Draft approved and sent to scheduler."
     elif action_norm == "reject":
         post.status = PostStatus.rejected.value
         approval.status = "rejected"

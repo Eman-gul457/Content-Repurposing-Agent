@@ -19,6 +19,7 @@ DEFAULT_IMAGE_SIZE = (1080, 1080)
 PLAN_IMAGE_EXPIRES_SECONDS = 60 * 60 * 24 * 30
 PLATFORM_DIMENSIONS = {
     "linkedin": (1200, 627),
+    "instagram": (1080, 1080),
     "twitter": (1600, 900),
     "facebook": (1200, 628),
     "blog_summary": (1080, 1080),
@@ -88,6 +89,38 @@ CANVA_TEMPLATE_FAMILIES = (
     "canva-clean-modern",
     "canva-data-infographic",
 )
+CANVA_TEMPLATE_LIBRARY = [
+    {
+        "id": "canva-corporate-minimal",
+        "name": "Corporate Minimal",
+        "category": "Business",
+        "description": "Clean layout with strong headline and CTA area.",
+    },
+    {
+        "id": "canva-bold-promo",
+        "name": "Bold Promo",
+        "category": "Campaign",
+        "description": "High-contrast promotional layout for launches and offers.",
+    },
+    {
+        "id": "canva-split-insight",
+        "name": "Split Insight",
+        "category": "Education",
+        "description": "Two-column insight visual for before/after or compare formats.",
+    },
+    {
+        "id": "canva-clean-modern",
+        "name": "Clean Modern",
+        "category": "Brand",
+        "description": "Balanced modern composition for trusted brand messaging.",
+    },
+    {
+        "id": "canva-data-infographic",
+        "name": "Data Infographic",
+        "category": "Analytics",
+        "description": "Data-driven visual style for metrics and process storytelling.",
+    },
+]
 NEGATIVE_HINTS = {"constraint", "problem", "weak", "linear", "hunting", "slow", "bottleneck"}
 POSITIVE_HINTS = {
     "approved",
@@ -600,6 +633,10 @@ def _mime_to_ext(mime_type: str) -> str:
     }.get(mime_type, "bin")
 
 
+def list_canva_templates() -> list[dict[str, str]]:
+    return [dict(item) for item in CANVA_TEMPLATE_LIBRARY]
+
+
 def generate_plan_image(
     db: Session,
     user_id: str,
@@ -730,3 +767,116 @@ def generate_plan_image(
     db.commit()
     db.refresh(plan)
     return plan
+
+
+def generate_post_visual_from_template(
+    db: Session,
+    user_id: str,
+    post_id: int,
+    template_id: str,
+    caption_hint: str = "",
+    brand_name: str = "",
+) -> MediaAsset:
+    post = db.query(GeneratedPost).filter(GeneratedPost.id == post_id, GeneratedPost.user_id == user_id).first()
+    if not post:
+        raise RuntimeError("Post not found")
+
+    selected_template = template_id.strip() if template_id.strip() else "canva-clean-modern"
+    allowed = {item["id"] for item in CANVA_TEMPLATE_LIBRARY}
+    if selected_template not in allowed:
+        raise RuntimeError("Invalid Canva template id")
+
+    content = (post.edited_text or "").strip() or (post.generated_text or "").strip()
+    if not content:
+        raise RuntimeError("Post content is empty")
+
+    width, height = _pick_dimensions(post.platform)
+    seed = f"{post.id}:{post.platform}:{selected_template}"
+    style = _pick_style(seed)
+    layout = _pick_layout(seed)
+
+    prompt = (
+        f"Template family: {selected_template}. "
+        f"Create a polished visual for {post.platform} social media post. "
+        f"Brand: {brand_name or 'Your Brand'}. "
+        f"Caption hint: {caption_hint or content[:220]}"
+    )
+
+    image_result = generate_image_with_gemini(
+        _build_gemini_visual_prompt(
+            platform=post.platform,
+            theme=caption_hint or "Social campaign",
+            angle=content[:180],
+            image_prompt=prompt,
+            business_name=brand_name,
+            template_family=selected_template,
+            width=width,
+            height=height,
+        ),
+        width=width,
+        height=height,
+        strict=False,
+    )
+    if image_result:
+        image_bytes, mime_type = image_result
+    else:
+        pollinations = _download_pollinations(prompt=prompt, width=width, height=height)
+        if pollinations:
+            image_bytes, mime_type = pollinations
+        else:
+            image_bytes = _fallback_post_svg(
+                post.platform,
+                caption_hint or "Campaign visual",
+                content[:140],
+                brand_name or "Your Brand",
+                width,
+                height,
+                style,
+                layout,
+            )
+            mime_type = "image/svg+xml"
+
+    if mime_type not in {"image/png", "image/jpeg", "image/webp", "image/svg+xml"}:
+        image_bytes = _fallback_post_svg(
+            post.platform,
+            caption_hint or "Campaign visual",
+            content[:140],
+            brand_name or "Your Brand",
+            width,
+            height,
+            style,
+            layout,
+        )
+        mime_type = "image/svg+xml"
+
+    _ensure_bucket()
+    ext = _mime_to_ext(mime_type)
+    file_name = f"post_{post.id}_{selected_template}_{int(datetime.utcnow().timestamp())}.{ext}"
+    storage_path = str(Path(user_id) / "posts" / str(post.id) / file_name).replace("\\", "/")
+
+    upload = requests.post(
+        f"{settings.supabase_url}/storage/v1/object/{settings.supabase_storage_bucket}/{storage_path}",
+        headers={**_supabase_headers(mime_type), "x-upsert": "true"},
+        data=image_bytes,
+        timeout=60,
+    )
+    if upload.status_code not in (200, 201):
+        raise RuntimeError(f"Post visual upload failed: {upload.status_code} {upload.text[:200]}")
+
+    signed_url = _generate_signed_url(storage_path)
+    media = MediaAsset(
+        user_id=user_id,
+        post_id=post.id,
+        platform=post.platform,
+        file_name=file_name,
+        mime_type=mime_type,
+        file_size=len(image_bytes),
+        storage_path=storage_path,
+        file_url=signed_url,
+        upload_status="uploaded",
+        last_error="",
+    )
+    db.add(media)
+    db.commit()
+    db.refresh(media)
+    return media

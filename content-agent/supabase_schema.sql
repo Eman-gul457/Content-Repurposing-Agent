@@ -150,3 +150,87 @@ create table if not exists publish_jobs (
 create index if not exists idx_publish_jobs_user on publish_jobs(user_id);
 create index if not exists idx_publish_jobs_post on publish_jobs(post_id);
 create index if not exists idx_publish_jobs_status on publish_jobs(status);
+
+create table if not exists client_profiles (
+  id bigserial primary key,
+  user_id text not null,
+  business_name text not null,
+  industry text default '',
+  social_handles text default '',
+  website text default '',
+  brand_voice text default '',
+  keywords text default '',
+  topics_to_avoid text default '',
+  target_audience text default '',
+  whatsapp_number text default '',
+  logo_url text default '',
+  onboarding_status text default 'pending',
+  service_paused boolean default false,
+  notes text default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_client_profiles_user on client_profiles(user_id);
+create index if not exists idx_client_profiles_status on client_profiles(onboarding_status);
+
+create table if not exists client_payments (
+  id bigserial primary key,
+  user_id text not null,
+  client_id bigint not null references client_profiles(id) on delete cascade,
+  plan_name text default 'Starter',
+  subscription_status text default 'active',
+  amount double precision default 0,
+  currency text default 'USD',
+  due_date timestamptz null,
+  last_paid_at timestamptz null,
+  auto_pause_if_unpaid boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create index if not exists idx_client_payments_user on client_payments(user_id);
+create index if not exists idx_client_payments_client on client_payments(client_id);
+create index if not exists idx_client_payments_status on client_payments(subscription_status);
+
+create table if not exists client_performance_metrics (
+  id bigserial primary key,
+  user_id text not null,
+  client_id bigint not null references client_profiles(id) on delete cascade,
+  platform text not null,
+  metric_date timestamptz not null,
+  likes bigint default 0,
+  shares bigint default 0,
+  comments bigint default 0,
+  clicks bigint default 0,
+  follower_growth bigint default 0,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_client_perf_user on client_performance_metrics(user_id);
+create index if not exists idx_client_perf_client on client_performance_metrics(client_id);
+create index if not exists idx_client_perf_date on client_performance_metrics(metric_date);
+
+create table if not exists post_client_links (
+  id bigserial primary key,
+  user_id text not null,
+  client_id bigint not null references client_profiles(id) on delete cascade,
+  post_id bigint not null references generated_posts(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(post_id)
+);
+
+create index if not exists idx_post_client_links_user on post_client_links(user_id);
+create index if not exists idx_post_client_links_client on post_client_links(client_id);
+
+create table if not exists plan_client_links (
+  id bigserial primary key,
+  user_id text not null,
+  client_id bigint not null references client_profiles(id) on delete cascade,
+  plan_id bigint not null references content_plans(id) on delete cascade,
+  created_at timestamptz default now(),
+  unique(plan_id)
+);
+
+create index if not exists idx_plan_client_links_user on plan_client_links(user_id);
+create index if not exists idx_plan_client_links_client on plan_client_links(client_id);

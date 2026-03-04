@@ -30,6 +30,8 @@ class Settings:
     twitter_redirect_uri: str = os.getenv("TWITTER_REDIRECT_URI", "")
     facebook_page_id: str = os.getenv("FACEBOOK_PAGE_ID", "")
     facebook_page_access_token: str = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
+    instagram_business_account_id: str = os.getenv("INSTAGRAM_BUSINESS_ACCOUNT_ID", "")
+    instagram_access_token: str = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
     canva_client_id: str = os.getenv("CANVA_CLIENT_ID", "")
     canva_client_secret: str = os.getenv("CANVA_CLIENT_SECRET", "")
     canva_redirect_uri: str = os.getenv("CANVA_REDIRECT_URI", "")

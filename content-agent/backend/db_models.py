@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -11,6 +11,7 @@ class Base(DeclarativeBase):
 
 class Platform(str, Enum):
     linkedin = "linkedin"
+    instagram = "instagram"
     twitter = "twitter"
     facebook = "facebook"
 
@@ -164,3 +165,80 @@ class PublishJob(Base):
     error_message: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClientProfile(Base):
+    __tablename__ = "client_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    business_name: Mapped[str] = mapped_column(String(256))
+    industry: Mapped[str] = mapped_column(String(256), default="")
+    social_handles: Mapped[str] = mapped_column(Text, default="")
+    website: Mapped[str] = mapped_column(String(512), default="")
+    brand_voice: Mapped[str] = mapped_column(Text, default="")
+    keywords: Mapped[str] = mapped_column(Text, default="")
+    topics_to_avoid: Mapped[str] = mapped_column(Text, default="")
+    target_audience: Mapped[str] = mapped_column(Text, default="")
+    whatsapp_number: Mapped[str] = mapped_column(String(48), default="")
+    logo_url: Mapped[str] = mapped_column(String(512), default="")
+    onboarding_status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    service_paused: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClientPayment(Base):
+    __tablename__ = "client_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id", ondelete="CASCADE"), index=True)
+    plan_name: Mapped[str] = mapped_column(String(128), default="Starter")
+    subscription_status: Mapped[str] = mapped_column(String(24), default="active", index=True)
+    amount: Mapped[float] = mapped_column(Float, default=0.0)
+    currency: Mapped[str] = mapped_column(String(16), default="USD")
+    due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    auto_pause_if_unpaid: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ClientPerformanceMetric(Base):
+    __tablename__ = "client_performance_metrics"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id", ondelete="CASCADE"), index=True)
+    platform: Mapped[str] = mapped_column(String(24), index=True)
+    metric_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    likes: Mapped[int] = mapped_column(default=0)
+    shares: Mapped[int] = mapped_column(default=0)
+    comments: Mapped[int] = mapped_column(default=0)
+    clicks: Mapped[int] = mapped_column(default=0)
+    follower_growth: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PostClientLink(Base):
+    __tablename__ = "post_client_links"
+    __table_args__ = (UniqueConstraint("post_id", name="uq_post_client_link_post"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id", ondelete="CASCADE"), index=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("generated_posts.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PlanClientLink(Base):
+    __tablename__ = "plan_client_links"
+    __table_args__ = (UniqueConstraint("plan_id", name="uq_plan_client_link_plan"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("client_profiles.id", ondelete="CASCADE"), index=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("content_plans.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

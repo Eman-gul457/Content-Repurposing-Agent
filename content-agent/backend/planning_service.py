@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session
 from backend.db_models import ContentPlan, ResearchItem
 
 DEFAULT_POSTS_PER_WEEK = 3
-WEEKDAY_PATTERN = [0, 2, 4, 6, 1]  # Mon, Wed, Fri, Sun, Tue
+WEEKDAY_PATTERN = [0, 1, 2, 3, 4, 5, 6]
 PLATFORM_TIMES = {
     "linkedin": (10, 30),
+    "instagram": (18, 30),
     "twitter": (13, 0),
     "facebook": (20, 0),
     "blog_summary": (11, 0),
@@ -25,6 +26,7 @@ ANGLE_TEMPLATES = [
 ]
 PLATFORM_STYLE_HINT = {
     "linkedin": "thought leadership visual, professional and clean",
+    "instagram": "high-impact carousel cover style, bold and modern",
     "twitter": "bold social card, high contrast and concise text",
     "facebook": "friendly community-style graphic, warm and clear",
     "blog_summary": "editorial summary card, minimal and readable",
@@ -71,7 +73,7 @@ def create_content_plans(
 ) -> list[ContentPlan]:
     tz = ZoneInfo(timezone_name)
     now_local = datetime.now(tz)
-    posts_per_week = max(2, min(5, posts_per_week))
+    posts_per_week = max(1, min(7, posts_per_week))
 
     preferred_research = [item.title for item in research_items if item.title and item.source != "existing_posts"]
     fallback_research = [item.title for item in research_items if item.title]
