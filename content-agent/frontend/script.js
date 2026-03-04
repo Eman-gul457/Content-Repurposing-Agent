@@ -9,6 +9,7 @@ const state = {
   drafts: [],
   templates: [],
   payments: [],
+  pendingApprovals: 0,
   analyticsChart: null,
 };
 
@@ -29,7 +30,10 @@ const refs = {
     payments: document.getElementById("page-payments"),
     settings: document.getElementById("page-settings"),
   },
+  notifyBtn: document.getElementById("notifyBtn"),
   notifyCount: document.getElementById("notifyCount"),
+  notificationPanel: document.getElementById("notificationPanel"),
+  notificationList: document.getElementById("notificationList"),
   profileBtn: document.getElementById("profileBtn"),
   logoutBtn: document.getElementById("logoutBtn"),
   googleLoginBtn: document.getElementById("googleLoginBtn"),
@@ -108,6 +112,55 @@ function setBanner(text) {
   refs.authBanner.textContent = text;
 }
 
+function closeNotificationPanel() {
+  if (!refs.notificationPanel || !refs.notifyBtn) return;
+  refs.notificationPanel.hidden = true;
+  refs.notifyBtn.setAttribute("aria-expanded", "false");
+}
+
+function renderNotificationPanel() {
+  if (!refs.notificationList) return;
+  if (!state.authed) {
+    refs.notificationList.innerHTML = "<p class='muted'>Log in to view notifications.</p>";
+    return;
+  }
+  const notifications = [];
+  if (state.pendingApprovals > 0) {
+    notifications.push({
+      title: `${state.pendingApprovals} approval request(s) pending`,
+      detail: "Open Draft Workflow and send reminders or finalize approval.",
+    });
+  }
+  const scheduled = state.drafts.filter((d) => d.status === "scheduled").length;
+  if (scheduled > 0) {
+    notifications.push({
+      title: `${scheduled} post(s) scheduled`,
+      detail: "Content is queued and ready for automatic publishing.",
+    });
+  }
+  const dues = state.payments.filter((p) => p.subscription_status === "past_due" || p.subscription_status === "unpaid").length;
+  if (dues > 0) {
+    notifications.push({
+      title: `${dues} payment account(s) need attention`,
+      detail: "Review payment status to avoid service auto-pause.",
+    });
+  }
+  if (!notifications.length) {
+    refs.notificationList.innerHTML = "<p class='muted'>No new notifications.</p>";
+    return;
+  }
+  refs.notificationList.innerHTML = notifications
+    .map(
+      (item) => `
+        <article class="notification-item">
+          <strong>${escapeHtml(item.title)}</strong>
+          <p class="muted">${escapeHtml(item.detail)}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function localDateInputValue(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -161,13 +214,18 @@ function setActivePage(page) {
 
 function setAuthedUI(isAuthed, email = "") {
   state.authed = isAuthed;
+  refs.body.classList.toggle("logged-out", !isAuthed);
   refs.loginSection.hidden = isAuthed;
   refs.sidebar.hidden = !isAuthed;
+  refs.mobileMenuBtn.hidden = !isAuthed;
+  refs.globalSearchInput.hidden = !isAuthed;
+  refs.notifyBtn.hidden = !isAuthed;
   refs.googleLoginBtn.hidden = isAuthed;
   refs.githubLoginBtn.hidden = isAuthed;
   refs.emailLoginBtn.hidden = isAuthed;
   refs.logoutBtn.hidden = !isAuthed;
   refs.profileBtn.hidden = !isAuthed;
+  closeNotificationPanel();
   refs.profileBtn.textContent = isAuthed ? (email[0] || "U").toUpperCase() : "U";
   if (!isAuthed) {
     Object.values(refs.pages).forEach((node) => {
@@ -352,10 +410,12 @@ async function loadDashboard() {
   refs.statScheduled.textContent = String(data.scheduled_posts || 0);
   refs.statEngagement.textContent = String(data.engagement_total || 0);
   refs.statRevenue.textContent = `$${Number(data.revenue_total || 0).toFixed(2)}`;
-  refs.notifyCount.textContent = String(data.pending_approvals || 0);
+  state.pendingApprovals = Number(data.pending_approvals || 0);
+  refs.notifyCount.textContent = String(state.pendingApprovals);
   refs.dashboardHealthText.textContent = data.pending_approvals > 0
     ? `${data.pending_approvals} draft approval(s) pending`
     : "All systems healthy and queued posts are on track.";
+  renderNotificationPanel();
 }
 
 async function loadClients() {
@@ -369,11 +429,13 @@ async function loadDrafts() {
   state.drafts = data.posts || [];
   renderDrafts();
   renderCalendarPosts();
+  renderNotificationPanel();
 }
 
 async function loadPayments() {
   state.payments = await api("/api/payments");
   renderPayments();
+  renderNotificationPanel();
 }
 
 async function loadCanvaTemplates() {
@@ -469,6 +531,27 @@ refs.navButtons.forEach((btn) => {
 
 refs.mobileMenuBtn.addEventListener("click", () => refs.body.classList.toggle("menu-open"));
 refs.globalSearchInput.addEventListener("input", handleSearchFilter);
+refs.notifyBtn.addEventListener("click", (event) => {
+  event.stopPropagation();
+  const shouldOpen = refs.notificationPanel.hidden;
+  if (shouldOpen) {
+    renderNotificationPanel();
+    refs.notificationPanel.hidden = false;
+    refs.notifyBtn.setAttribute("aria-expanded", "true");
+    return;
+  }
+  closeNotificationPanel();
+});
+document.addEventListener("click", (event) => {
+  if (refs.notificationPanel.hidden) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (refs.notificationPanel.contains(target) || refs.notifyBtn.contains(target)) return;
+  closeNotificationPanel();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeNotificationPanel();
+});
 
 refs.googleLoginBtn.addEventListener("click", () => signInWithProvider("google").catch((e) => setBanner(`Login failed: ${e.message}`)));
 refs.githubLoginBtn.addEventListener("click", () => signInWithProvider("github").catch((e) => setBanner(`Login failed: ${e.message}`)));

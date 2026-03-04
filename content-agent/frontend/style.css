@@ -77,6 +77,10 @@ h3 {
   gap: 10px;
 }
 
+.topbar-right {
+  position: relative;
+}
+
 .logo-pill {
   border-radius: 999px;
   padding: 8px 14px;
@@ -360,6 +364,61 @@ button:hover {
   margin-left: 4px;
 }
 
+.notification-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, 88vw);
+  max-height: 380px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: var(--shadow);
+  padding: 10px;
+  z-index: 60;
+}
+
+.notification-panel-header {
+  font-weight: 700;
+  padding: 4px 6px 10px;
+}
+
+.notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.notification-item {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f8faff;
+  padding: 10px;
+}
+
+.notification-item p {
+  margin: 6px 0 0;
+}
+
+body.logged-out .app-shell {
+  grid-template-columns: 1fr;
+}
+
+body.logged-out .main-content {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding-top: 26px;
+}
+
+body.logged-out .auth-banner {
+  display: none;
+}
+
+body.logged-out .login-section {
+  min-height: 72vh;
+}
+
 [hidden] {
   display: none !important;
 }
@@ -430,6 +489,9 @@ button:hover {
 @media (max-width: 600px) {
   .topbar {
     padding: 10px;
+  }
+  .notification-panel {
+    right: -8px;
   }
   .topbar-right button {
     padding: 6px 8px;

@@ -15,12 +15,16 @@
 
   <header class="topbar">
     <div class="topbar-left">
-      <button id="mobileMenuBtn" class="icon-btn" type="button">☰</button>
+      <button id="mobileMenuBtn" class="icon-btn" type="button" aria-label="Open menu">&#9776;</button>
       <div class="logo-pill">AI Agent Pro</div>
       <input id="globalSearchInput" type="search" class="search-input" placeholder="Search clients, posts, payments..." />
     </div>
     <div class="topbar-right">
-      <button id="notifyBtn" class="icon-btn" type="button">🔔 <span id="notifyCount" class="badge">0</span></button>
+      <button id="notifyBtn" class="icon-btn" type="button" aria-label="Notifications">&#128276; <span id="notifyCount" class="badge">0</span></button>
+      <div id="notificationPanel" class="notification-panel" hidden>
+        <div class="notification-panel-header">Notifications</div>
+        <div id="notificationList" class="notification-list"></div>
+      </div>
       <button id="googleLoginBtn" class="ghost" type="button">Google</button>
       <button id="githubLoginBtn" class="ghost" type="button">GitHub</button>
       <button id="emailLoginBtn" class="ghost" type="button">Magic Link</button>
@@ -223,3 +227,4 @@
   <script src="script.js"></script>
 </body>
 </html>
+
