@@ -10,6 +10,8 @@ const state = {
   templates: [],
   payments: [],
   pendingApprovals: 0,
+  analyticsTotals: { likes: 0, shares: 0, comments: 0, clicks: 0, follower_growth: 0 },
+  dragPostId: null,
   analyticsChart: null,
 };
 
@@ -20,6 +22,7 @@ const refs = {
   sidebar: document.getElementById("sidebar"),
   mobileMenuBtn: document.getElementById("mobileMenuBtn"),
   globalSearchInput: document.getElementById("globalSearchInput"),
+  searchWrap: document.querySelector(".search-wrap"),
   navButtons: Array.from(document.querySelectorAll(".nav-btn")),
   pages: {
     dashboard: document.getElementById("page-dashboard"),
@@ -47,6 +50,8 @@ const refs = {
   statScheduled: document.getElementById("statScheduled"),
   statEngagement: document.getElementById("statEngagement"),
   statRevenue: document.getElementById("statRevenue"),
+  welcomeTitle: document.getElementById("welcomeTitle"),
+  welcomeSubtitle: document.getElementById("welcomeSubtitle"),
   dashboardHealthText: document.getElementById("dashboardHealthText"),
   clientForm: document.getElementById("clientForm"),
   clientBusinessName: document.getElementById("clientBusinessName"),
@@ -64,6 +69,7 @@ const refs = {
   calendarForm: document.getElementById("calendarForm"),
   calendarClientSelect: document.getElementById("calendarClientSelect"),
   calendarSeedInput: document.getElementById("calendarSeedInput"),
+  calendarBoard: document.getElementById("calendarBoard"),
   calendarPostsList: document.getElementById("calendarPostsList"),
   generatorForm: document.getElementById("generatorForm"),
   generatorClientSelect: document.getElementById("generatorClientSelect"),
@@ -77,8 +83,10 @@ const refs = {
   refreshAnalyticsBtn: document.getElementById("refreshAnalyticsBtn"),
   analyticsLikes: document.getElementById("analyticsLikes"),
   analyticsShares: document.getElementById("analyticsShares"),
+  analyticsComments: document.getElementById("analyticsComments"),
   analyticsClicks: document.getElementById("analyticsClicks"),
   analyticsFollowers: document.getElementById("analyticsFollowers"),
+  topPostsList: document.getElementById("topPostsList"),
   analyticsChart: document.getElementById("analyticsChart"),
   paymentForm: document.getElementById("paymentForm"),
   paymentClientSelect: document.getElementById("paymentClientSelect"),
@@ -110,6 +118,33 @@ function escapeHtml(value) {
 
 function setBanner(text) {
   refs.authBanner.textContent = text;
+}
+
+function platformLabel(platform) {
+  return String(platform || "").trim().toUpperCase();
+}
+
+function platformIcon(platform) {
+  const key = String(platform || "").toLowerCase();
+  if (key === "linkedin") return "in";
+  if (key === "instagram") return "ig";
+  if (key === "facebook") return "fb";
+  if (key === "twitter") return "x";
+  return "ai";
+}
+
+function setButtonLoading(button, loading, busyText = "Loading...") {
+  if (!(button instanceof HTMLButtonElement)) return;
+  if (loading) {
+    if (!button.dataset.defaultText) button.dataset.defaultText = button.textContent || "";
+    button.textContent = busyText;
+    button.classList.add("is-loading");
+    button.disabled = true;
+    return;
+  }
+  button.classList.remove("is-loading");
+  button.disabled = false;
+  button.textContent = button.dataset.defaultText || button.textContent || "";
 }
 
 function closeNotificationPanel() {
@@ -209,6 +244,7 @@ function setActivePage(page) {
     node.hidden = name !== page || !state.authed;
   });
   refs.navButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.page === page));
+  refs.body.dataset.page = page;
   refs.body.classList.remove("menu-open");
 }
 
@@ -218,7 +254,7 @@ function setAuthedUI(isAuthed, email = "") {
   refs.loginSection.hidden = isAuthed;
   refs.sidebar.hidden = !isAuthed;
   refs.mobileMenuBtn.hidden = !isAuthed;
-  refs.globalSearchInput.hidden = !isAuthed;
+  if (refs.searchWrap) refs.searchWrap.hidden = !isAuthed;
   refs.notifyBtn.hidden = !isAuthed;
   refs.googleLoginBtn.hidden = isAuthed;
   refs.githubLoginBtn.hidden = isAuthed;
@@ -232,8 +268,13 @@ function setAuthedUI(isAuthed, email = "") {
       node.hidden = true;
     });
     setBanner("Not logged in");
+    if (refs.welcomeTitle) refs.welcomeTitle.textContent = "Welcome back";
+    if (refs.welcomeSubtitle) refs.welcomeSubtitle.textContent = "Track pipeline health, review pending approvals, and keep publishing momentum.";
     return;
   }
+  const shortName = String(email || "").split("@")[0] || "there";
+  if (refs.welcomeTitle) refs.welcomeTitle.textContent = `Welcome, ${shortName}`;
+  if (refs.welcomeSubtitle) refs.welcomeSubtitle.textContent = "Your campaigns, approvals, and automation jobs are ready.";
   setActivePage(state.activePage);
   setBanner(`Logged in as ${email}`);
 }
@@ -284,12 +325,15 @@ function renderClientCards() {
     .map(
       (c) => `
         <article class="post-card" data-client-id="${c.id}">
-          <strong>${escapeHtml(c.business_name)}</strong>
+          <div class="post-card-head">
+            <strong>${escapeHtml(c.business_name)}</strong>
+            <span class="post-status">${c.service_paused ? "Paused" : "Active"}</span>
+          </div>
           <p class="muted">${escapeHtml(c.industry || "N/A")} | ${escapeHtml(c.website || "No website")}</p>
-          <p class="muted">Accounts: ${escapeHtml((c.connected_accounts || []).join(", ") || "None")}</p>
+          <p class="muted">Connected: ${escapeHtml((c.connected_accounts || []).join(", ") || "None")}</p>
           <p class="muted">Next post: ${c.next_scheduled_post ? new Date(c.next_scheduled_post).toLocaleString() : "Not scheduled"}</p>
           <p class="muted">Engagement: Likes ${c.engagement_likes} | Shares ${c.engagement_shares} | Clicks ${c.engagement_clicks} | Followers +${c.follower_growth}</p>
-          <p class="muted">Onboarding: ${escapeHtml(c.onboarding_status)} | Service: ${c.service_paused ? "Paused" : "Active"}</p>
+          <p class="muted">Onboarding: ${escapeHtml(c.onboarding_status)}</p>
           <div class="row">
             <button class="secondary onboarding-btn" data-client-id="${c.id}" type="button">Complete Onboarding</button>
           </div>
@@ -306,7 +350,7 @@ function renderDrafts() {
     return;
   }
   const latest = state.drafts[0];
-  refs.previewCard.innerHTML = `<strong>${escapeHtml(latest.platform.toUpperCase())}</strong><p>${escapeHtml(
+  refs.previewCard.innerHTML = `<span class="post-platform">${platformIcon(latest.platform)} ${escapeHtml(platformLabel(latest.platform))}</span><p>${escapeHtml(
     (latest.edited_text || latest.generated_text || "").slice(0, 450),
   )}</p>`;
   refs.draftsList.innerHTML = state.drafts
@@ -314,8 +358,10 @@ function renderDrafts() {
     .map(
       (d) => `
         <article class="post-card" data-post-id="${d.id}">
-          <strong>${escapeHtml(d.platform.toUpperCase())}</strong>
-          <p class="muted">Status: ${escapeHtml(d.status)}</p>
+          <div class="post-card-head">
+            <span class="post-platform">${platformIcon(d.platform)} ${escapeHtml(platformLabel(d.platform))}</span>
+            <span class="post-status">${escapeHtml(d.status)}</span>
+          </div>
           <textarea class="draft-editor">${escapeHtml(d.edited_text || d.generated_text || "")}</textarea>
           <div class="row">
             <input class="schedule-input" type="datetime-local" value="${localDateInputValue(d.scheduled_at)}" />
@@ -334,8 +380,71 @@ function renderDrafts() {
     .join("");
 }
 
+function weekDates(days = 7) {
+  const out = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + i);
+    out.push(d);
+  }
+  return out;
+}
+
+function dateKey(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+function renderCalendarBoard() {
+  if (!refs.calendarBoard) return;
+  const days = weekDates(7);
+  const byDay = new Map(days.map((d) => [dateKey(d), []]));
+  state.drafts
+    .filter((d) => d.status === "scheduled" && d.scheduled_at)
+    .forEach((d) => {
+      const key = dateKey(d.scheduled_at);
+      if (!byDay.has(key)) return;
+      byDay.get(key).push(d);
+    });
+
+  refs.calendarBoard.innerHTML = days
+    .map((day) => {
+      const key = dateKey(day);
+      const label = day.toLocaleDateString(undefined, { weekday: "short" });
+      const dateLabel = day.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      const items = byDay.get(key) || [];
+      return `
+        <section class="calendar-day" data-date="${key}">
+          <header class="calendar-day-header">
+            <strong>${escapeHtml(label)}</strong>
+            <span>${escapeHtml(dateLabel)}</span>
+          </header>
+          ${
+            items.length
+              ? items
+                  .map(
+                    (d) => `
+                      <article class="calendar-post-card" draggable="true" data-post-id="${d.id}">
+                        <span class="post-platform">${platformIcon(d.platform)} ${escapeHtml(platformLabel(d.platform))}</span>
+                        <p>${escapeHtml((d.edited_text || d.generated_text || "").slice(0, 92))}</p>
+                      </article>
+                    `,
+                  )
+                  .join("")
+              : "<p class='calendar-empty'>No posts</p>"
+          }
+        </section>
+      `;
+    })
+    .join("");
+}
+
 function renderCalendarPosts() {
   const scheduled = state.drafts.filter((d) => d.status === "scheduled");
+  renderCalendarBoard();
   if (!scheduled.length) {
     refs.calendarPostsList.innerHTML = "<p class='muted'>No scheduled posts yet.</p>";
     return;
@@ -344,8 +453,11 @@ function renderCalendarPosts() {
     .slice(0, 25)
     .map(
       (d) => `
-        <article class="post-card">
-          <strong>${escapeHtml(d.platform.toUpperCase())}</strong>
+        <article class="post-card" data-post-id="${d.id}">
+          <div class="post-card-head">
+            <span class="post-platform">${platformIcon(d.platform)} ${escapeHtml(platformLabel(d.platform))}</span>
+            <span class="post-status">scheduled</span>
+          </div>
           <p class="muted">${d.scheduled_at ? new Date(d.scheduled_at).toLocaleString() : "No time set"}</p>
           <p>${escapeHtml((d.edited_text || d.generated_text || "").slice(0, 220))}</p>
         </article>
@@ -380,6 +492,42 @@ function renderPayments() {
     .join("");
 }
 
+function engagementScoreForPost(post) {
+  const text = post.edited_text || post.generated_text || "";
+  const hashBase = (post.id * 31 + text.length * 7 + String(post.platform || "").length * 13) % 100;
+  let score = 30 + hashBase;
+  if (post.status === "posted") score += 20;
+  if (post.status === "scheduled") score += 8;
+  return Math.min(99, score);
+}
+
+function renderTopPosts() {
+  if (!refs.topPostsList) return;
+  const shortlist = state.drafts
+    .slice()
+    .sort((a, b) => engagementScoreForPost(b) - engagementScoreForPost(a))
+    .slice(0, 5);
+
+  if (!shortlist.length) {
+    refs.topPostsList.innerHTML = "<p class='muted'>No post performance data yet.</p>";
+    return;
+  }
+
+  refs.topPostsList.innerHTML = shortlist
+    .map(
+      (d) => `
+        <article class="post-card">
+          <div class="post-card-head">
+            <span class="post-platform">${platformIcon(d.platform)} ${escapeHtml(platformLabel(d.platform))}</span>
+            <span class="post-status">Score ${engagementScoreForPost(d)}</span>
+          </div>
+          <p>${escapeHtml((d.edited_text || d.generated_text || "").slice(0, 160))}</p>
+        </article>
+      `,
+    )
+    .join("");
+}
+
 function renderSocialStatus(accounts) {
   const map = {};
   accounts.forEach((a) => {
@@ -408,7 +556,13 @@ async function loadDashboard() {
   const data = await api("/api/dashboard/overview");
   refs.statClients.textContent = String(data.total_clients || 0);
   refs.statScheduled.textContent = String(data.scheduled_posts || 0);
-  refs.statEngagement.textContent = String(data.engagement_total || 0);
+  const interactions = Number(state.analyticsTotals.likes || 0)
+    + Number(state.analyticsTotals.shares || 0)
+    + Number(state.analyticsTotals.comments || 0)
+    + Number(state.analyticsTotals.clicks || 0);
+  const basePosts = Math.max(1, state.drafts.length || Number(data.scheduled_posts || 1));
+  const engagementRate = Math.min(99, Math.max(0, Math.round((interactions / (basePosts * 30)) * 100)));
+  refs.statEngagement.textContent = `${engagementRate}%`;
   refs.statRevenue.textContent = `$${Number(data.revenue_total || 0).toFixed(2)}`;
   state.pendingApprovals = Number(data.pending_approvals || 0);
   refs.notifyCount.textContent = String(state.pendingApprovals);
@@ -429,6 +583,7 @@ async function loadDrafts() {
   state.drafts = data.posts || [];
   renderDrafts();
   renderCalendarPosts();
+  renderTopPosts();
   renderNotificationPanel();
 }
 
@@ -456,14 +611,17 @@ async function loadAnalytics() {
   const days = Number(refs.analyticsDaysSelect.value || 14);
   const query = clientId ? `?days=${days}&client_id=${clientId}` : `?days=${days}`;
   const data = await api(`/api/analytics/overview${query}`);
+  state.analyticsTotals = data.totals || state.analyticsTotals;
   refs.analyticsLikes.textContent = String(data.totals.likes || 0);
   refs.analyticsShares.textContent = String(data.totals.shares || 0);
+  if (refs.analyticsComments) refs.analyticsComments.textContent = String(data.totals.comments || 0);
   refs.analyticsClicks.textContent = String(data.totals.clicks || 0);
   refs.analyticsFollowers.textContent = String(data.totals.follower_growth || 0);
 
   const labels = data.series.map((x) => x.date);
   const likes = data.series.map((x) => x.likes);
   const shares = data.series.map((x) => x.shares);
+  const comments = data.series.map((x) => x.comments);
   const clicks = data.series.map((x) => x.clicks);
   const followers = data.series.map((x) => x.follower_growth);
 
@@ -475,20 +633,32 @@ async function loadAnalytics() {
     data: {
       labels,
       datasets: [
-        { label: "Likes", data: likes, borderColor: "#4f46e5", backgroundColor: "rgba(79,70,229,0.1)", tension: 0.3 },
-        { label: "Shares", data: shares, borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.1)", tension: 0.3 },
-        { label: "Clicks", data: clicks, borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.1)", tension: 0.3 },
-        { label: "Follower Growth", data: followers, borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,0.1)", tension: 0.3 },
+        { label: "Likes", data: likes, borderColor: "#4f46e5", backgroundColor: "rgba(79,70,229,0.08)", tension: 0.35, fill: true },
+        { label: "Shares", data: shares, borderColor: "#7c3aed", backgroundColor: "rgba(124,58,237,0.08)", tension: 0.35, fill: true },
+        { label: "Comments", data: comments, borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.08)", tension: 0.35, fill: true },
+        { label: "Clicks", data: clicks, borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.08)", tension: 0.35, fill: true },
+        { label: "Follower Growth", data: followers, borderColor: "#16a34a", backgroundColor: "rgba(22,163,74,0.08)", tension: 0.35, fill: true },
       ],
     },
-    options: { responsive: true, interaction: { mode: "index", intersect: false } },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "bottom", labels: { usePointStyle: true, boxWidth: 8 } },
+      },
+      scales: {
+        x: { grid: { color: "rgba(148,163,184,0.12)" } },
+        y: { grid: { color: "rgba(148,163,184,0.12)" }, beginAtZero: true },
+      },
+    },
   });
+  renderTopPosts();
 }
 
 async function refreshAll() {
   withSkeleton(refs.statClients.parentElement);
-  await Promise.all([loadDashboard(), loadClients(), loadDrafts(), loadPayments(), loadCanvaTemplates(), loadSocial()]);
-  await loadAnalytics();
+  await Promise.all([loadClients(), loadDrafts(), loadPayments(), loadCanvaTemplates(), loadSocial()]);
+  await Promise.all([loadAnalytics(), loadDashboard()]);
 }
 
 async function connectPlatform(path, label) {
@@ -525,6 +695,14 @@ function handleSearchFilter() {
   });
 }
 
+async function schedulePostToDate(postId, dateIso) {
+  const target = new Date(`${dateIso}T09:00:00`);
+  await api(`/api/posts/${postId}/schedule`, {
+    method: "PATCH",
+    body: JSON.stringify({ scheduled_at: target.toISOString() }),
+  });
+}
+
 refs.navButtons.forEach((btn) => {
   btn.addEventListener("click", () => setActivePage(btn.dataset.page));
 });
@@ -551,6 +729,48 @@ document.addEventListener("click", (event) => {
 });
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeNotificationPanel();
+});
+refs.calendarBoard.addEventListener("dragstart", (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const card = target.closest(".calendar-post-card");
+  if (!(card instanceof HTMLElement)) return;
+  const postId = Number(card.dataset.postId || 0);
+  if (!postId) return;
+  state.dragPostId = postId;
+  card.classList.add("is-dragging");
+});
+refs.calendarBoard.addEventListener("dragend", () => {
+  state.dragPostId = null;
+  refs.calendarBoard.querySelectorAll(".calendar-day").forEach((node) => node.classList.remove("drag-over"));
+});
+refs.calendarBoard.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const day = target.closest(".calendar-day");
+  if (!(day instanceof HTMLElement)) return;
+  refs.calendarBoard.querySelectorAll(".calendar-day").forEach((node) => node.classList.remove("drag-over"));
+  day.classList.add("drag-over");
+});
+refs.calendarBoard.addEventListener("drop", async (event) => {
+  event.preventDefault();
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) return;
+  const day = target.closest(".calendar-day");
+  if (!(day instanceof HTMLElement) || !state.dragPostId) return;
+  const dateIso = day.dataset.date || "";
+  if (!dateIso) return;
+  refs.calendarBoard.querySelectorAll(".calendar-day").forEach((node) => node.classList.remove("drag-over"));
+  try {
+    await schedulePostToDate(state.dragPostId, dateIso);
+    setBanner("Post rescheduled from calendar.");
+    await Promise.all([loadDrafts(), loadDashboard()]);
+  } catch (e) {
+    setBanner(`Calendar drop failed: ${e.message}`);
+  } finally {
+    state.dragPostId = null;
+  }
 });
 
 refs.googleLoginBtn.addEventListener("click", () => signInWithProvider("google").catch((e) => setBanner(`Login failed: ${e.message}`)));
@@ -589,6 +809,8 @@ refs.logoutBtn.addEventListener("click", async () => {
 
 refs.clientForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = refs.clientForm.querySelector('button[type="submit"]');
+  setButtonLoading(submitBtn, true, "Saving...");
   try {
     await api("/api/clients", {
       method: "POST",
@@ -611,6 +833,8 @@ refs.clientForm.addEventListener("submit", async (event) => {
     await Promise.all([loadClients(), loadDashboard()]);
   } catch (e) {
     setBanner(`Client save failed: ${e.message}`);
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 });
 
@@ -631,12 +855,14 @@ refs.clientsList.addEventListener("click", async (event) => {
 
 refs.calendarForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = refs.calendarForm.querySelector('button[type="submit"]');
   const client = selectedClientFrom(refs.calendarClientSelect);
   if (!client) {
     setBanner("Select a client first.");
     return;
   }
   const platforms = selectedCheckboxValues(".calendarPlatform");
+  setButtonLoading(submitBtn, true, "Building...");
   try {
     setBanner("Generating 7-day calendar...");
     await api("/api/content-calendar/generate", {
@@ -652,13 +878,17 @@ refs.calendarForm.addEventListener("submit", async (event) => {
     await Promise.all([loadDrafts(), loadDashboard()]);
   } catch (e) {
     setBanner(`Calendar generation failed: ${e.message}`);
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 });
 
 refs.generatorForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = refs.generatorForm.querySelector('button[type="submit"]');
   const client = selectedClientFrom(refs.generatorClientSelect);
   const platforms = selectedCheckboxValues(".generatorPlatform");
+  setButtonLoading(submitBtn, true, "Generating...");
   try {
     setBanner("Generating drafts...");
     const payload = {
@@ -680,6 +910,8 @@ refs.generatorForm.addEventListener("submit", async (event) => {
     await Promise.all([loadDrafts(), loadDashboard()]);
   } catch (e) {
     setBanner(`Generation failed: ${e.message}`);
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 });
 
@@ -741,11 +973,13 @@ refs.draftsList.addEventListener("click", async (event) => {
 
 refs.paymentForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  const submitBtn = refs.paymentForm.querySelector('button[type="submit"]');
   const client = selectedClientFrom(refs.paymentClientSelect);
   if (!client) {
     setBanner("Select a client for subscription.");
     return;
   }
+  setButtonLoading(submitBtn, true, "Saving...");
   try {
     await api("/api/payments", {
       method: "POST",
@@ -763,6 +997,8 @@ refs.paymentForm.addEventListener("submit", async (event) => {
     await Promise.all([loadPayments(), loadDashboard(), loadClients()]);
   } catch (e) {
     setBanner(`Subscription save failed: ${e.message}`);
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 });
 

@@ -10,17 +10,23 @@
   <script src="config.js"></script>
 </head>
 <body>
+  <div class="bg-layer bg-grid"></div>
   <div class="bg-orb bg-orb-1"></div>
   <div class="bg-orb bg-orb-2"></div>
 
   <header class="topbar">
     <div class="topbar-left">
       <button id="mobileMenuBtn" class="icon-btn" type="button" aria-label="Open menu">&#9776;</button>
-      <div class="logo-pill">AI Agent Pro</div>
-      <input id="globalSearchInput" type="search" class="search-input" placeholder="Search clients, posts, payments..." />
+      <div class="logo-pill"><span class="logo-dot"></span> AI Agent Pro</div>
+      <label class="search-wrap" for="globalSearchInput">
+        <span class="search-icon">&#128269;</span>
+        <input id="globalSearchInput" type="search" class="search-input" placeholder="Search clients, posts, payments..." />
+      </label>
     </div>
     <div class="topbar-right">
-      <button id="notifyBtn" class="icon-btn" type="button" aria-label="Notifications">&#128276; <span id="notifyCount" class="badge">0</span></button>
+      <button id="notifyBtn" class="icon-btn" type="button" aria-label="Notifications" aria-expanded="false">
+        &#128276; <span id="notifyCount" class="badge">0</span>
+      </button>
       <div id="notificationPanel" class="notification-panel" hidden>
         <div class="notification-panel-header">Notifications</div>
         <div id="notificationList" class="notification-list"></div>
@@ -35,57 +41,81 @@
 
   <div class="app-shell">
     <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <p class="sidebar-title">Command Center</p>
+        <p class="sidebar-subtitle">Social AI operations</p>
+      </div>
       <nav class="nav-list">
-        <button class="nav-btn active" data-page="dashboard" type="button">Dashboard</button>
-        <button class="nav-btn" data-page="clients" type="button">Clients</button>
-        <button class="nav-btn" data-page="calendar" type="button">Content Calendar</button>
-        <button class="nav-btn" data-page="generator" type="button">Post Generator</button>
-        <button class="nav-btn" data-page="analytics" type="button">Analytics</button>
-        <button class="nav-btn" data-page="payments" type="button">Payments</button>
-        <button class="nav-btn" data-page="settings" type="button">Settings</button>
+        <button class="nav-btn active" data-page="dashboard" type="button"><span class="nav-ico">&#127968;</span><span>Dashboard</span></button>
+        <button class="nav-btn" data-page="clients" type="button"><span class="nav-ico">&#128101;</span><span>Clients</span></button>
+        <button class="nav-btn" data-page="calendar" type="button"><span class="nav-ico">&#128197;</span><span>Content Calendar</span></button>
+        <button class="nav-btn" data-page="generator" type="button"><span class="nav-ico">&#9997;</span><span>Post Generator</span></button>
+        <button class="nav-btn" data-page="analytics" type="button"><span class="nav-ico">&#128200;</span><span>Analytics</span></button>
+        <button class="nav-btn" data-page="payments" type="button"><span class="nav-ico">&#128179;</span><span>Payments</span></button>
+        <button class="nav-btn" data-page="settings" type="button"><span class="nav-ico">&#9881;</span><span>Settings</span></button>
       </nav>
     </aside>
 
     <main class="main-content">
       <div id="authBanner" class="auth-banner">Not logged in</div>
-      <div hidden id="buildStamp">build-2026-03-04-0406524</div>
+      <div hidden id="buildStamp">build-2026-03-05-premium-redesign</div>
 
       <section id="loginSection" class="login-section">
-        <div class="card login-card">
-          <h1>Social Media AI Agent</h1>
-          <p>Premium AI workflow for business content, approvals, scheduling, analytics, and payments.</p>
-          <div class="row">
-            <button id="loginGoogleMainBtn" class="cta" type="button">Continue with Google</button>
-            <button id="loginGithubMainBtn" class="secondary" type="button">Continue with GitHub</button>
+        <div class="login-shell">
+          <div class="login-hero card-gradient">
+            <p class="hero-kicker">Automation AI Agent ACP</p>
+            <h1>Grow Your Business with AI Social Media Automation</h1>
+            <p>Generate, approve, schedule, and publish content across platforms with one premium command center.</p>
+            <div class="hero-points">
+              <div><strong>7 days</strong><span>Auto content calendar</span></div>
+              <div><strong>WhatsApp</strong><span>Approval workflow</span></div>
+              <div><strong>Multi-client</strong><span>SaaS management dashboard</span></div>
+            </div>
           </div>
-          <div class="row">
-            <input id="magicEmailInput" type="email" placeholder="Email for magic link" />
-            <button id="magicLinkSendBtn" class="secondary" type="button">Send Link</button>
+
+          <div class="card login-card glass-card">
+            <h2>Welcome back</h2>
+            <p class="muted">Sign in to continue managing your clients and campaigns.</p>
+            <div class="row row-stack-mobile">
+              <button id="loginGoogleMainBtn" class="cta oauth-btn" type="button"><span>G</span> Continue with Google</button>
+              <button id="loginGithubMainBtn" class="secondary oauth-btn" type="button"><span>{ }</span> Continue with GitHub</button>
+            </div>
+            <div class="form-grid">
+              <label class="field-label" for="magicEmailInput">Email magic link</label>
+              <input id="magicEmailInput" type="email" placeholder="name@company.com" />
+              <button id="magicLinkSendBtn" class="secondary" type="button">Send Link</button>
+            </div>
           </div>
         </div>
       </section>
 
       <section id="page-dashboard" class="page-view">
-        <h2 class="page-title">Dashboard</h2>
+        <header class="dashboard-hero card card-gradient">
+          <p class="hero-kicker">AI Content Command Center</p>
+          <h2 id="welcomeTitle" class="page-title">Welcome back</h2>
+          <p id="welcomeSubtitle" class="muted">Track pipeline health, review pending approvals, and keep publishing momentum.</p>
+        </header>
+
         <div class="stats-grid">
-          <article class="stat-card">
-            <p>Total Clients</p>
+          <article class="stat-card stat-card-indigo">
+            <div class="stat-top"><span class="stat-icon">&#128101;</span><p>Total Clients</p></div>
             <h3 id="statClients">0</h3>
           </article>
-          <article class="stat-card">
-            <p>Scheduled Posts</p>
+          <article class="stat-card stat-card-violet">
+            <div class="stat-top"><span class="stat-icon">&#9200;</span><p>Scheduled Posts</p></div>
             <h3 id="statScheduled">0</h3>
           </article>
-          <article class="stat-card">
-            <p>Engagement Analytics</p>
-            <h3 id="statEngagement">0</h3>
+          <article class="stat-card stat-card-cyan">
+            <div class="stat-top"><span class="stat-icon">&#128293;</span><p>Engagement Rate</p></div>
+            <h3 id="statEngagement">0%</h3>
           </article>
-          <article class="stat-card">
-            <p>Revenue</p>
+          <article class="stat-card stat-card-emerald">
+            <div class="stat-top"><span class="stat-icon">&#128176;</span><p>Monthly Revenue</p></div>
             <h3 id="statRevenue">$0</h3>
           </article>
         </div>
-        <div class="card">
+
+        <div class="card health-card">
           <h3>Automation Health</h3>
           <p id="dashboardHealthText" class="muted">Ready</p>
         </div>
@@ -110,7 +140,7 @@
             <button class="cta" type="submit">Save Client</button>
           </form>
           <div class="card">
-            <h3>Clients</h3>
+            <h3>Client Portfolio</h3>
             <div id="clientsList" class="cards-list"></div>
           </div>
         </div>
@@ -123,15 +153,20 @@
             <h3>Generate 7 Days Automatically</h3>
             <select id="calendarClientSelect"></select>
             <textarea id="calendarSeedInput" placeholder="Campaign idea, offer, or content direction" required></textarea>
-            <label><input type="checkbox" class="calendarPlatform" value="linkedin" checked /> LinkedIn</label>
-            <label><input type="checkbox" class="calendarPlatform" value="instagram" checked /> Instagram</label>
-            <label><input type="checkbox" class="calendarPlatform" value="facebook" checked /> Facebook</label>
+            <label class="platform-toggle"><input type="checkbox" class="calendarPlatform" value="linkedin" checked /> LinkedIn</label>
+            <label class="platform-toggle"><input type="checkbox" class="calendarPlatform" value="instagram" checked /> Instagram</label>
+            <label class="platform-toggle"><input type="checkbox" class="calendarPlatform" value="facebook" checked /> Facebook</label>
             <button class="cta" type="submit">Generate Calendar</button>
           </form>
           <div class="card">
-            <h3>Scheduled Posts</h3>
-            <div id="calendarPostsList" class="cards-list"></div>
+            <h3>Visual Weekly Calendar</h3>
+            <p class="muted">Drag and drop cards to reschedule posts.</p>
+            <div id="calendarBoard" class="calendar-board"></div>
           </div>
+        </div>
+        <div class="card">
+          <h3>Schedule Queue</h3>
+          <div id="calendarPostsList" class="cards-list"></div>
         </div>
       </section>
 
@@ -142,11 +177,13 @@
             <h3>AI Caption Generator</h3>
             <select id="generatorClientSelect"></select>
             <textarea id="generatorContentInput" placeholder="Write your post idea or campaign brief" required></textarea>
-            <label><input type="checkbox" class="generatorPlatform" value="linkedin" checked /> LinkedIn</label>
-            <label><input type="checkbox" class="generatorPlatform" value="instagram" checked /> Instagram</label>
-            <label><input type="checkbox" class="generatorPlatform" value="facebook" checked /> Facebook</label>
+            <div class="platform-row">
+              <label class="platform-toggle"><input type="checkbox" class="generatorPlatform" value="linkedin" checked /> LinkedIn</label>
+              <label class="platform-toggle"><input type="checkbox" class="generatorPlatform" value="instagram" checked /> Instagram</label>
+              <label class="platform-toggle"><input type="checkbox" class="generatorPlatform" value="facebook" checked /> Facebook</label>
+            </div>
             <select id="canvaTemplateSelect"></select>
-            <div id="canvaTemplatePreview" class="preview-card"></div>
+            <div id="canvaTemplatePreview" class="preview-card">Template preview will appear here.</div>
             <button class="cta" type="submit">Generate Drafts</button>
           </form>
           <div class="card">
@@ -171,14 +208,22 @@
           </select>
           <button id="refreshAnalyticsBtn" class="secondary" type="button">Refresh Analytics</button>
         </div>
-        <div class="stats-grid">
-          <article class="stat-card"><p>Likes</p><h3 id="analyticsLikes">0</h3></article>
-          <article class="stat-card"><p>Shares</p><h3 id="analyticsShares">0</h3></article>
-          <article class="stat-card"><p>Clicks</p><h3 id="analyticsClicks">0</h3></article>
-          <article class="stat-card"><p>Follower Growth</p><h3 id="analyticsFollowers">0</h3></article>
+        <div class="stats-grid analytics-stats-grid">
+          <article class="stat-card"><div class="stat-top"><span class="stat-icon">&#128077;</span><p>Likes</p></div><h3 id="analyticsLikes">0</h3></article>
+          <article class="stat-card"><div class="stat-top"><span class="stat-icon">&#128257;</span><p>Shares</p></div><h3 id="analyticsShares">0</h3></article>
+          <article class="stat-card"><div class="stat-top"><span class="stat-icon">&#128172;</span><p>Comments</p></div><h3 id="analyticsComments">0</h3></article>
+          <article class="stat-card"><div class="stat-top"><span class="stat-icon">&#128279;</span><p>Clicks</p></div><h3 id="analyticsClicks">0</h3></article>
+          <article class="stat-card"><div class="stat-top"><span class="stat-icon">&#128200;</span><p>Follower Growth</p></div><h3 id="analyticsFollowers">0</h3></article>
         </div>
-        <div class="card">
-          <canvas id="analyticsChart" height="120"></canvas>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Engagement Trends</h3>
+            <canvas id="analyticsChart" height="120"></canvas>
+          </div>
+          <div class="card">
+            <h3>Top Performing Posts</h3>
+            <div id="topPostsList" class="cards-list"></div>
+          </div>
         </div>
       </section>
 
@@ -227,4 +272,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
