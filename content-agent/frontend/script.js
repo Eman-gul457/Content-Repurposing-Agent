@@ -208,6 +208,13 @@ function populateClientSelects() {
     .map((c) => `<option value="${c.id}">${escapeHtml(c.business_name)}</option>`)
     .join("")}`;
   refs.paymentClientSelect.innerHTML = options;
+
+  if (state.clients.length > 0) {
+    const firstId = String(state.clients[0].id);
+    if (!refs.generatorClientSelect.value) refs.generatorClientSelect.value = firstId;
+    if (!refs.calendarClientSelect.value) refs.calendarClientSelect.value = firstId;
+    if (!refs.paymentClientSelect.value) refs.paymentClientSelect.value = firstId;
+  }
 }
 
 function renderClientCards() {
@@ -568,25 +575,23 @@ refs.calendarForm.addEventListener("submit", async (event) => {
 refs.generatorForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const client = selectedClientFrom(refs.generatorClientSelect);
-  if (!client) {
-    setBanner("Select a client first.");
-    return;
-  }
   const platforms = selectedCheckboxValues(".generatorPlatform");
   try {
     setBanner("Generating drafts...");
+    const payload = {
+      content: refs.generatorContentInput.value,
+      business_name: client?.business_name || "",
+      niche: client?.industry || "",
+      audience: client?.target_audience || "",
+      tone: client?.brand_voice || "",
+      region: "Global",
+      platforms,
+    };
+    if (client?.id) payload.client_id = client.id;
+
     await api("/api/agent/run", {
       method: "POST",
-      body: JSON.stringify({
-        client_id: client.id,
-        content: refs.generatorContentInput.value,
-        business_name: client.business_name,
-        niche: client.industry,
-        audience: client.target_audience,
-        tone: client.brand_voice,
-        region: "Global",
-        platforms,
-      }),
+      body: JSON.stringify(payload),
     });
     setBanner("Drafts generated.");
     await Promise.all([loadDrafts(), loadDashboard()]);
